@@ -1,9 +1,54 @@
+/**
+ * Global styles for UnlockPi — Pi Tutor classroom AI.
+ * Design system inspired by the Pi AI web app:
+ *   - Pure dark background (#000)
+ *   - Vibrant orange (#ff4d00) accent
+ *   - Manrope font for body, JetBrains Mono for code
+ *   - Custom crosshair cursors
+ *   - Styled orange scrollbars
+ */
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── Pi AI Design Tokens ─── */
+:root {
+  /* Core palette */
+  --color-black: #000;
+  --color-white: #efefef;
+  --color-lighter-gray: #afafaf;
+  --color-gray: #747474;
+  --color-dark-gray: #3a3a3a;
+  --color-darker-gray: #232323;
+  --color-darkest-gray: #121212;
+  /* --color-orange: #ff4d00; */
+  --color-orange: #DC2626;
+  --color-orange-rgb: 255 77 0;
+  --color-red: red;
+
+  /* Utility tokens */
+  --text-shadow: hsla(0, 0%, 94%, 0.3);
+  --bg-black: hsla(0, 0%, 7%, 0.97);
+
+  /* Fonts */
+  --font-system: -apple-system, blinkmacsystemfont, segoe ui, roboto, oxygen,
+    ubuntu, cantarell, fira sans, droid sans, helvetica neue, sans-serif;
+  --font-body: var(--font-sans), var(--font-system), sans-serif;
+  --font-jb-mono: var(--font-mono), "JetBrains Mono", monospace;
+
+  /* Custom cursors (crosshair style from Pi AI) */
+  --cursor-pointer: url("data:image/svg+xml,%3Csvg width=%2727%27 height=%2727%27 fill=%27none%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath fill=%27%23EFEFEF%27 stroke=%27%23000%27 d=%27M12.5 12.5v2H.5v-2zM26.5 12.5v2h-12v-2zM14.5 11.5h-2V.5h2zM14.5 26.5h-2v-11h2z%27/%3E%3Cpath fill=%27%23EFEFEF%27 stroke=%27%23000%27 d=%27M15.5 11.5v4h-4v-4z%27/%3E%3C/svg%3E") 11 11, pointer;
+  --cursor-default: url("data:image/svg+xml,%3Csvg width=%2727%27 height=%2727%27 fill=%27none%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath d=%27M14 26.5h.5v-12h12v-2h-12V.5h-2v12H.5v2h12v12H14Z%27 fill=%27%23EFEFEF%27 stroke=%27%23000%27/%3E%3C/svg%3E") 11 11, default;
+  --cursor-text: url("data:image/svg+xml,%3Csvg width=%2725%27 height=%2727%27 fill=%27none%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath fill=%27%23EFEFEF%27 stroke=%27%23000%27 d=%27M13.5 26.5h-2V.5h2z%27/%3E%3C/svg%3E") 11 11, text;
+
+  /* Layout */
+  --scrollbar-width: max(10px, 0.5208333333vw);
+}
+
+/* ─── Shadcn / Tailwind Theme Mapping (Dark-first) ─── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -47,80 +92,180 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
+/* Light mode (kept for compatibility, but app defaults to dark) */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  --background: #000000;
+  --foreground: #efefef;
+  --card: #121212;
+  --card-foreground: #efefef;
+  --popover: #121212;
+  --popover-foreground: #efefef;
+  --primary: #DC2626;
+  --primary-foreground: #000000;
+  --secondary: #232323;
+  --secondary-foreground: #efefef;
+  --muted: #1a1a1a;
+  --muted-foreground: #747474;
+  --accent: #3a3a3a;
+  --accent-foreground: #efefef;
+  --destructive: #ff0000;
+  --border: #232323;
+  --input: #232323;
+  --ring: #ff4d00;
+  --chart-1: #ff4d00;
+  --chart-2: #ff6a2a;
+  --chart-3: #ff8855;
+  --chart-4: #ffa57f;
+  --chart-5: #ffc3aa;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #efefef;
+  --sidebar-primary: #ff4d00;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #efefef;
+  --sidebar-border: #232323;
+  --sidebar-ring: #ff4d00;
 }
 
+/* Dark mode class (matches root since the app IS dark) */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0.00 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #000000;
+  --foreground: #efefef;
+  --card: #121212;
+  --card-foreground: #efefef;
+  --popover: #121212;
+  --popover-foreground: #efefef;
+  --primary: #ff4d00;
+  --primary-foreground: #000000;
+  --secondary: #232323;
+  --secondary-foreground: #efefef;
+  --muted: #1a1a1a;
+  --muted-foreground: #747474;
+  --accent: #3a3a3a;
+  --accent-foreground: #efefef;
+  --destructive: #ff0000;
+  --border: #232323;
+  --input: #232323;
+  --ring: #ff4d00;
+  --chart-1: #ff4d00;
+  --chart-2: #ff6a2a;
+  --chart-3: #ff8855;
+  --chart-4: #ffa57f;
+  --chart-5: #ffc3aa;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #efefef;
+  --sidebar-primary: #ff4d00;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #efefef;
+  --sidebar-border: #232323;
+  --sidebar-ring: #ff4d00;
 }
 
+/* ─── Global Resets & Base Styles (Pi style) ─── */
+html {
+  line-height: 1.5;
+  box-sizing: border-box;
+  text-rendering: geometricprecision;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-black);
+  scrollbar-color: var(--color-orange) var(--color-black);
+}
+
+*,
+*::after,
+*::before {
+  box-sizing: border-box;
+  border: 0 solid var(--border);
+}
+
+/* Custom crosshair cursor on all interactive elements */
+html {
+  cursor: var(--cursor-default);
+}
+
+a,
+button,
+[role="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="button"],
+select,
+summary,
+.cursor-pointer {
+  cursor: var(--cursor-pointer) !important;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  cursor: var(--cursor-text) !important;
+}
+
+/* ─── Custom Scrollbar (Orange on darkest gray) ─── */
+html ::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+}
+
+html ::-webkit-scrollbar-thumb {
+  background: var(--color-orange);
+  border-radius: 999px;
+}
+
+html ::-webkit-scrollbar-track {
+  background: var(--color-darker-gray);
+}
+
+/* ─── Selection Highlight ─── */
+::selection {
+  background-color: rgba(255, 77, 0, 0.35);
+  color: #fff;
+}
+
+/* ─── Focus Ring (orange glow) ─── */
+:focus-visible {
+  outline: 2px solid var(--color-orange);
+  outline-offset: 2px;
+}
+
+/* ─── Base Layer ─── */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-body);
   }
+}
+
+/* ─── Utility Classes ─── */
+.text-pi-orange {
+  color: var(--color-orange);
+}
+
+.bg-pi-orange {
+  background-color: var(--color-orange);
+}
+
+.border-pi-orange {
+  border-color: var(--color-orange);
+}
+
+.glow-orange {
+  box-shadow: 0 0 30px rgba(255, 77, 0, 0.3), 0 0 60px rgba(255, 77, 0, 0.1);
+}
+
+.text-shadow-light {
+  text-shadow: 0 0 20px var(--text-shadow);
+}
+
+/* Smooth transition for all interactive state changes */
+.transition-pi {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }

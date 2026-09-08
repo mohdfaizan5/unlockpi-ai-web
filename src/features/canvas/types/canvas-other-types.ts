@@ -6,6 +6,7 @@ import type { CanvasRecord, CanvasSummary } from "@/features/canvas/lib/canvas-r
 import type {
   CanvasAiAction,
   CanvasDocument,
+  CanvasFontFamily,
   CanvasTemplateKey,
   CanvasThemeId,
   CanvasTypographyScale,
@@ -87,6 +88,7 @@ export type CanvasQuickCommand = {
 export type CanvasEditorController = {
   activeCanvasId: string | null;
   activeCanvasTheme: CanvasThemeId;
+  activeFontFamily: CanvasFontFamily;
   activeSlideId: string | null;
   activeTemplateKey: CanvasTemplateKey;
   activeTopic: string;
@@ -101,6 +103,7 @@ export type CanvasEditorController = {
   easyMode: boolean;
   frames: FrameSummary[];
   gridTemplateColumns: string;
+  isAppearancePending: boolean;
   isDesktop: boolean;
   isLightTheme: boolean;
   isPublic: boolean;
@@ -153,6 +156,7 @@ export type CanvasEditorController = {
     updateCanvasAppearance: (appearance: Partial<{
       theme: CanvasThemeId;
       typographyScale: CanvasTypographyScale;
+      fontFamily: CanvasFontFamily;
     }>) => void;
   };
 };

@@ -16,6 +16,26 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/**
+ * Canvas "Handwriting" typeface. Declared as a plain @font-face rather than
+ * next/font because it needs to be OPT-IN per canvas (only some canvases
+ * choose the handwriting typeface), not loaded on every page. A CSS
+ * @font-face descriptor costs nothing until something on the page actually
+ * renders text in that font-family — the browser only fetches
+ * Excalifont-Regular.woff2 the moment a canvas with fontFamily="handwriting"
+ * is open; canvases left on the default "modern" typeface (Inter/Manrope/
+ * Space Grotesk, already loaded globally via next/font in layout.tsx) never
+ * trigger this request at all. font-display: swap avoids a blocked/invisible
+ * text flash while it loads.
+ */
+@font-face {
+  font-family: "Excalifont";
+  src: url("/Excalifont-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ─── Pi AI Design Tokens ─── */
 :root {
   /* Core palette */
@@ -214,11 +234,20 @@ html {
   /* scrollbar-color: var(--color-orange) var(--color-black); */
 }
 
+/*
+  Global box-sizing + default border color. The default border COLOR is set
+  in @layer base below via `@apply border-border` — do NOT use the `border`
+  shorthand here (or set `border-width: 0`): the shorthand and any
+  border-width declaration in an UNLAYERED rule beat every Tailwind
+  `border-*` utility (utilities live in @layer utilities, and cascade layers
+  make unlayered rules win over layered ones regardless of specificity).
+  That was silently zeroing every `border`, `border-l-2`, `border-8`, etc.
+  used anywhere in the app.
+*/
 *,
 *::after,
 *::before {
   box-sizing: border-box;
-  border: 0 solid var(--border);
 }
 
 /* Custom crosshair cursor on all interactive elements */

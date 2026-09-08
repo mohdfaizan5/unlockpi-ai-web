@@ -1,12 +1,14 @@
 import type { CSSProperties } from "react";
 
 import type {
+  CanvasFontFamily,
   CanvasThemeId,
   CanvasTypographyScale,
 } from "@/features/canvas/types/canvas-types";
 
 export const DEFAULT_CANVAS_THEME: CanvasThemeId = "default";
 export const DEFAULT_CANVAS_TYPOGRAPHY_SCALE: CanvasTypographyScale = "medium";
+export const DEFAULT_CANVAS_FONT_FAMILY: CanvasFontFamily = "modern";
 
 export const canvasThemeOptions: Array<{
   id: CanvasThemeId;
@@ -71,6 +73,57 @@ export const canvasTypographyOptions: Array<{
     previewSize: "text-base",
   },
 ];
+
+export const canvasFontFamilyOptions: Array<{
+  id: CanvasFontFamily;
+  name: string;
+  description: string;
+  /** Actual CSS font-family value used for the "Aa" preview swatch. */
+  previewFontFamily: string;
+}> = [
+  {
+    id: "modern",
+    name: "Modern",
+    description: "Inter / Manrope / Space Grotesk — the default classroom look.",
+    previewFontFamily: "var(--font-canvas-body), var(--font-system), sans-serif",
+  },
+  {
+    id: "handwriting",
+    name: "Handwriting",
+    description: "Excalifont — a hand-drawn feel for sketch-style lessons.",
+    previewFontFamily: '"Excalifont", var(--font-system), sans-serif',
+  },
+  {
+    id: "old-school",
+    name: "Old school",
+    description: "A classic serif for a textbook, old-school look.",
+    previewFontFamily:
+      'Georgia, Cambria, "Times New Roman", Times, serif',
+  },
+];
+
+/**
+ * Per-family override for the canvas's heading/subheading/body font
+ * variables. "modern" is deliberately EMPTY — it sets nothing, so the
+ * canvas simply inherits `--font-canvas-heading/subheading/body` from the
+ * global `<html>` (next/font, already loaded for every page). Only
+ * "handwriting" and "old-school" locally shadow those variables for the
+ * canvas subtree, which is what makes the extra font opt-in per canvas
+ * rather than a global cost.
+ */
+const fontFamilyStyles: Record<CanvasFontFamily, CSSProperties> = {
+  modern: {} as CSSProperties,
+  handwriting: {
+    "--font-canvas-heading": '"Excalifont", var(--font-system), sans-serif',
+    "--font-canvas-subheading": '"Excalifont", var(--font-system), sans-serif',
+    "--font-canvas-body": '"Excalifont", var(--font-system), sans-serif',
+  } as CSSProperties,
+  "old-school": {
+    "--font-canvas-heading": 'Georgia, Cambria, "Times New Roman", Times, serif',
+    "--font-canvas-subheading": 'Georgia, Cambria, "Times New Roman", Times, serif',
+    "--font-canvas-body": 'Georgia, Cambria, "Times New Roman", Times, serif',
+  } as CSSProperties,
+};
 
 const themeStyles: Record<CanvasThemeId, CSSProperties> = {
   default: {
@@ -164,10 +217,12 @@ const typographyStyles: Record<CanvasTypographyScale, CSSProperties> = {
 export function getCanvasThemeStyle(
   theme: CanvasThemeId = DEFAULT_CANVAS_THEME,
   typographyScale: CanvasTypographyScale = DEFAULT_CANVAS_TYPOGRAPHY_SCALE,
+  fontFamily: CanvasFontFamily = DEFAULT_CANVAS_FONT_FAMILY,
 ) {
   return {
     ...themeStyles[theme],
     ...typographyStyles[typographyScale],
+    ...fontFamilyStyles[fontFamily],
   } as CSSProperties;
 }
 
@@ -179,4 +234,8 @@ export function isCanvasTypographyScale(
   value: unknown,
 ): value is CanvasTypographyScale {
   return canvasTypographyOptions.some((scale) => scale.id === value);
+}
+
+export function isCanvasFontFamily(value: unknown): value is CanvasFontFamily {
+  return canvasFontFamilyOptions.some((family) => family.id === value);
 }

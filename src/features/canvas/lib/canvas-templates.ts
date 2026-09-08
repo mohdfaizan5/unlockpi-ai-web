@@ -4,7 +4,10 @@ import type {
   CanvasTemplate,
   CanvasTemplateKey,
 } from "@/features/canvas/types/canvas-types";
-import { DEFAULT_CANVAS_THEME } from "@/features/canvas/lib/canvas-theme";
+import {
+  DEFAULT_CANVAS_FONT_FAMILY,
+  DEFAULT_CANVAS_THEME,
+} from "@/features/canvas/lib/canvas-theme";
 
 type CanvasContent = CanvasDocument["content"];
 type CanvasContentItem = CanvasContent[number];
@@ -38,6 +41,7 @@ function createDocument(title: string, content: CanvasContent): CanvasDocument {
         subject: "computer_science",
         theme: DEFAULT_CANVAS_THEME,
         typographyScale: "base",
+        fontFamily: DEFAULT_CANVAS_FONT_FAMILY,
       },
     },
     content: content.map((item, index) =>

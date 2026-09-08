@@ -22,6 +22,7 @@ import type {
   LeftPanelView,
 } from "@/features/canvas/types/canvas-other-types";
 import {
+  DEFAULT_CANVAS_FONT_FAMILY,
   DEFAULT_CANVAS_THEME,
   DEFAULT_CANVAS_TYPOGRAPHY_SCALE,
 } from "@/features/canvas/lib/canvas-theme";
@@ -125,6 +126,8 @@ export function withCanvasTitle(
         typographyScale:
           document.root?.props?.typographyScale ??
           DEFAULT_CANVAS_TYPOGRAPHY_SCALE,
+        fontFamily:
+          document.root?.props?.fontFamily ?? DEFAULT_CANVAS_FONT_FAMILY,
         title,
       },
     },

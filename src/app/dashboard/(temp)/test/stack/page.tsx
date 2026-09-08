@@ -3,14 +3,6 @@
 import { useCallback, useState } from "react";
 
 import { ArrayStrip } from "@/components/data-structure/array-strip";
-import {
-  canPopStack,
-  canPushStack,
-  clampStackToCapacity,
-  popStack,
-  pushStack,
-  type StackCapacity,
-} from "@/components/data-structure/stack-model";
 import { StackStrip } from "@/components/data-structure/stack-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,9 +48,7 @@ function ArraySection() {
         </Button>
         <Button
           size="sm"
-          onClick={() =>
-            setArrayData((prev) => [...prev, prev.length + 1])
-          }
+          onClick={() => setArrayData((prev) => [...prev, prev.length + 1])}
         >
           push
         </Button>
@@ -79,23 +69,17 @@ function StackPlayground() {
   // readable label ("dress 4", "dress 5", …) even after pops.
   const [pushCounter, setPushCounter] = useState(4);
 
-  // Single source of truth for "is this stack full/empty" — the same
-  // functions a future voice-controlled push/pop AI action would call, so
-  // clicking Push and saying "push a new value" can never disagree about
-  // whether the stack has room.
-  const capacity: StackCapacity = isFixed
-    ? { isFixed: true, size: stackSize }
-    : { isFixed: false };
-  const isFull = !canPushStack(stackData.length, capacity);
-  const isEmpty = !canPopStack(stackData.length);
+  const isFull = isFixed && stackData.length >= stackSize;
+  const isEmpty = stackData.length === 0;
 
   const push = useCallback(() => {
-    setStackData((prev) => pushStack(prev, `dress ${pushCounter}`, capacity));
+    if (isFull) return;
+    setStackData((prev) => [...prev, `dress ${pushCounter}`]);
     setPushCounter((n) => n + 1);
-  }, [capacity, pushCounter]);
+  }, [isFull, pushCounter]);
 
   const pop = useCallback(() => {
-    setStackData((prev) => popStack(prev));
+    setStackData((prev) => (prev.length ? prev.slice(0, -1) : prev));
   }, []);
 
   const clear = useCallback(() => {
@@ -107,47 +91,48 @@ function StackPlayground() {
       setIsFixed(nextChecked);
       // Flipping into Fixed with an over-sized dataset: trim to the current
       // stackSize so the visual matches the invariant.
-      if (nextChecked) {
-        setStackData((prev) =>
-          clampStackToCapacity(prev, { isFixed: true, size: stackSize }),
-        );
+      if (nextChecked && stackData.length > stackSize) {
+        setStackData((prev) => prev.slice(0, stackSize));
       }
     },
-    [stackSize],
+    [stackData.length, stackSize],
   );
 
-  const handleSizeChange = useCallback(
-    (value: number | readonly number[]) => {
-      const nextSize = Array.isArray(value) ? value[0] : (value as number);
-      setStackSize(nextSize);
-      // Same reason as above: shrinking the bucket must not leave items
-      // floating above the walls.
-      setStackData((prev) =>
-        clampStackToCapacity(prev, { isFixed: true, size: nextSize }),
-      );
-    },
-    [],
-  );
+  const handleSizeChange = useCallback((value: number | readonly number[]) => {
+    const nextSize = Array.isArray(value) ? value[0] : (value as number);
+    setStackSize(nextSize);
+    // Same reason as above: shrinking the bucket must not leave items
+    // floating above the walls.
+    setStackData((prev) =>
+      prev.length > nextSize ? prev.slice(0, nextSize) : prev,
+    );
+  }, []);
 
   return (
-    <section className="space-y-6">
-      <div className="flex items-center gap-3">
-        <h2 className="text-lg font-semibold">Stack</h2>
-        <Badge variant={isFixed ? "outline" : "secondary"}>
-          {isFixed ? `Fixed · ${stackData.length}/${stackSize}` : "Dynamic"}
-        </Badge>
+    <section className="space-y-6  flex justify-between max-w-4xl mx-auto gap-20">
+      <div>
+        <StackStrip
+          data={stackData}
+          name="S"
+          isFixed={isFixed}
+          stackSize={stackSize}
+        />
+        {isFull ? (
+          <p className="text-xs text-muted-foreground">
+            Stack is full. Pop an item or increase the size to push more.
+          </p>
+        ) : null}
       </div>
 
-      <StackStrip
-        data={stackData}
-        name="S"
-        isFixed={isFixed}
-        stackSize={stackSize}
-      />
-
       {/* Controls */}
-      <div className="grid gap-6 rounded-2xl border border-border bg-card p-5 md:grid-cols-[1fr_auto] md:items-start">
+      <div className="grid gap-6 max-w-96 rounded-2xl border border-border bg-card p-5 md:grid-cols-[1fr_auto] md:items-start">
         <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold">Stack</h2>
+            <Badge variant={isFixed ? "outline" : "secondary"}>
+              {isFixed ? `Fixed · ${stackData.length}/${stackSize}` : "Dynamic"}
+            </Badge>
+          </div>
           <div className="flex items-center gap-3">
             <Switch
               id="fixed-toggle"
@@ -186,28 +171,14 @@ function StackPlayground() {
           <Button onClick={push} disabled={isFull}>
             Push
           </Button>
-          <Button
-            variant="outline"
-            onClick={pop}
-            disabled={isEmpty}
-          >
+          <Button variant="outline" onClick={pop} disabled={isEmpty}>
             Pop
           </Button>
-          <Button
-            variant="ghost"
-            onClick={clear}
-            disabled={isEmpty}
-          >
+          <Button variant="ghost" onClick={clear} disabled={isEmpty}>
             Clear
           </Button>
         </div>
       </div>
-
-      {isFull ? (
-        <p className="text-xs text-muted-foreground">
-          Stack is full. Pop an item or increase the size to push more.
-        </p>
-      ) : null}
     </section>
   );
 }

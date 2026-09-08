@@ -151,7 +151,7 @@ export function AppSidebar({
       )}
       {...props}
     >
-      <SidebarHeader className="border-b border-border p-3">
+      <SidebarHeader className="border-b border-border/50 p-3">
         <div
           className={cn(
             "flex items-center gap-2",
@@ -244,17 +244,17 @@ export function AppSidebar({
             They now live on dedicated workspace pages so the sidebar stays focused on top-level navigation. */}
       </SidebarContent>
 
-      <SidebarFooter className="mt-auto border-t border-border px-2 py-3">
+      <SidebarFooter className="mt-auto border-t border-border/50 px-2 py-3">
         {currentUser ? (
           <SidebarMenu className="mt-2">
-            <SidebarMenuItem>
-              <Menu>
+            <SidebarMenuItem className="">
+              <Menu >
                 <MenuTrigger
                   render={
                     <SidebarMenuButton
                       size="lg"
                       tooltip={currentUser.name}
-                      className="h-auto min-h-12 items-center gap-3 rounded-2xl border border-border/70 bg-background/70 p-3 aria-expanded:bg-accent/50"
+                      className="h-auto min-h-12 items-center gap-3 rounded-2xl border2 border-border/70 bg-card p-3 aria-expanded:bg-accent/50"
                     />
                   }
                 >

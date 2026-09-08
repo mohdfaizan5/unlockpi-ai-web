@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type MouseEvent,
+} from "react";
 import { useTheme } from "next-themes";
 import { useDebouncedCallback } from "use-debounce";
 
@@ -23,10 +30,13 @@ import {
   withCanvasTitle,
 } from "@/features/canvas/lib/canvas-client-helpers";
 import {
+  DEFAULT_CANVAS_FONT_FAMILY,
   DEFAULT_CANVAS_THEME,
   DEFAULT_CANVAS_TYPOGRAPHY_SCALE,
+  canvasFontFamilyOptions,
   canvasThemeOptions,
   canvasTypographyOptions,
+  isCanvasFontFamily,
   isCanvasThemeId,
   isCanvasTypographyScale,
 } from "@/features/canvas/lib/canvas-theme";
@@ -38,6 +48,7 @@ import type {
 import type {
   CanvasAiAction,
   CanvasDocument,
+  CanvasFontFamily,
   CanvasThemeId,
   CanvasTypographyScale,
   SketchSceneData,
@@ -60,6 +71,15 @@ export function useCanvasEditorController(
   );
   const [isPublic, setIsPublic] = useState(model.canvas.isPublic ?? false);
   const [puckRevision, setPuckRevision] = useState(0);
+  // Bumping puckRevision force-remounts the ENTIRE <Puck> tree — header,
+  // sidebar, inspector, every frame — which is what makes an appearance
+  // change (theme/typography/typeface) feel like it "freezes" for a couple
+  // seconds before suddenly updating: the browser has no chance to paint
+  // anything in between. Wrapping that state update in a transition lets
+  // `isAppearancePending` flip true and PAINT immediately (its own update is
+  // not part of the transition), so the caller can show a loading state that
+  // bridges the gap instead of a silent freeze.
+  const [isAppearancePending, startAppearanceTransition] = useTransition();
   // Lives here, above the `<Puck key={puckRevision}>` remount boundary, so a
   // theme change or AI action (both bump puckRevision to force-remount Puck)
   // doesn't wipe out an unsaved drawing sitting in the Draw panel scratchpad.
@@ -142,12 +162,16 @@ export function useCanvasEditorController(
 
   const rootTheme = canvasDocument.root?.props?.theme;
   const rootTypographyScale = canvasDocument.root?.props?.typographyScale;
+  const rootFontFamily = canvasDocument.root?.props?.fontFamily;
   const activeCanvasTheme = isCanvasThemeId(rootTheme)
     ? rootTheme
     : DEFAULT_CANVAS_THEME;
   const activeTypographyScale = isCanvasTypographyScale(rootTypographyScale)
     ? rootTypographyScale
     : DEFAULT_CANVAS_TYPOGRAPHY_SCALE;
+  const activeFontFamily = isCanvasFontFamily(rootFontFamily)
+    ? rootFontFamily
+    : DEFAULT_CANVAS_FONT_FAMILY;
   const isLightTheme = resolvedTheme === "light";
   const showToolPanel = isDesktop && toolPanelOpen;
   const showAiPanel = isDesktop && aiPanelOpen;
@@ -235,6 +259,7 @@ export function useCanvasEditorController(
     appearance: Partial<{
       theme: CanvasThemeId;
       typographyScale: CanvasTypographyScale;
+      fontFamily: CanvasFontFamily;
     }>,
   ) => {
     const current = canvasDocumentRef.current;
@@ -247,19 +272,27 @@ export function useCanvasEditorController(
           subject: current.root?.props?.subject ?? "computer_science",
           theme: appearance.theme ?? activeCanvasTheme,
           typographyScale: appearance.typographyScale ?? activeTypographyScale,
+          fontFamily: appearance.fontFamily ?? activeFontFamily,
         },
       },
     };
 
-    setCanvasDocument(nextDocument);
     canvasDocumentRef.current = nextDocument;
-    setPuckRevision((revision) => revision + 1);
     setSaveStatus("Unsaved changes");
     appendLog(
       appearance.theme
         ? `Applied the ${canvasThemeOptions.find((theme) => theme.id === appearance.theme)?.name ?? "new"} theme.`
-        : `Set typography to ${canvasTypographyOptions.find((scale) => scale.id === appearance.typographyScale)?.name ?? "a new size"}.`,
+        : appearance.fontFamily
+          ? `Set typeface to ${canvasFontFamilyOptions.find((family) => family.id === appearance.fontFamily)?.name ?? "a new typeface"}.`
+          : `Set typography to ${canvasTypographyOptions.find((scale) => scale.id === appearance.typographyScale)?.name ?? "a new size"}.`,
     );
+    // The Puck remount is the expensive part — keep it (and the document
+    // swap that triggers it) inside the transition so `isAppearancePending`
+    // is available to show a loading state for exactly its duration.
+    startAppearanceTransition(() => {
+      setCanvasDocument(nextDocument);
+      setPuckRevision((revision) => revision + 1);
+    });
     void persistCanvas(nextDocument);
   };
 
@@ -389,6 +422,7 @@ export function useCanvasEditorController(
   return {
     activeCanvasId,
     activeCanvasTheme,
+    activeFontFamily,
     activeSlideId,
     activeTemplateKey,
     activeTopic,
@@ -403,6 +437,7 @@ export function useCanvasEditorController(
     easyMode,
     frames,
     gridTemplateColumns,
+    isAppearancePending,
     isDesktop,
     isDownloadingPdf,
     isLightTheme,

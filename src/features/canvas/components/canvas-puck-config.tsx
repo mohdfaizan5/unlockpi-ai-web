@@ -60,8 +60,10 @@ import type {
 } from "@/features/canvas/types/canvas-types";
 import { cn } from "@/lib/utils";
 import {
+  DEFAULT_CANVAS_FONT_FAMILY,
   DEFAULT_CANVAS_THEME,
   DEFAULT_CANVAS_TYPOGRAPHY_SCALE,
+  canvasFontFamilyOptions,
   canvasThemeOptions,
   canvasTypographyOptions,
   getCanvasThemeStyle,
@@ -357,6 +359,8 @@ function StackBlock({
   visitedIndices,
   traversalTarget,
   caption,
+  isFixed,
+  stackSize,
 }: StackBlockProps & { id: string }) {
   const stackValues = values.map((item) => item.value);
   const traversal = useTraversalState(
@@ -378,6 +382,8 @@ function StackBlock({
         traversalTarget={traversalTarget}
         data={stackValues}
         name="S"
+        isFixed={isFixed}
+        stackSize={stackSize}
       />
       <TraversalTrigger
         length={stackValues.length}
@@ -529,7 +535,16 @@ function MermaidBlock({ chart, description }: MermaidBlockProps) {
       title={description}
       className="min-w-0 overflow-hidden rounded-lg border border-border/70 bg-background/50 shadow-xs"
     >
-      <MermaidDiagram chart={chart} />
+      {/*
+        Mermaid bakes font-family into the SVG at render time rather than
+        inheriting ambient CSS, so it needs the canvas typeface passed
+        explicitly — same var chain as headingFontStyle/bodyFontStyle above,
+        which is what makes it follow Modern/Handwriting/Old school too.
+      */}
+      <MermaidDiagram
+        chart={chart}
+        fontFamily="var(--font-canvas-body), var(--font-system), sans-serif"
+      />
     </section>
   );
 }
@@ -547,7 +562,17 @@ function TableBlock({ title, columns, rows, caption }: TableBlockProps) {
         <p className="mt-1 text-sm text-muted-foreground">{caption}</p>
       </div>
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
-        <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+        {/*
+          `font-family` is inherited, so setting it once on <table> covers
+          every header and cell without touching each <th>/<td>. Same
+          bodyFontStyle used by BodyTextBlock — this is what makes table
+          content follow the canvas typeface (Modern/Handwriting/Old school)
+          instead of staying on the app's default font regardless of choice.
+        */}
+        <table
+          className="w-full min-w-[520px] border-collapse text-left text-sm"
+          style={bodyFontStyle}
+        >
           <thead className="bg-muted/60 text-xs uppercase tracking-[0.16em] text-muted-foreground">
             <tr>
               {columnLabels.map((column, index) => (
@@ -677,14 +702,23 @@ export const canvasPuckConfig: Config<CanvasComponents, CanvasRootProps> = {
           value: scale.id,
         })),
       },
+      fontFamily: {
+        type: "select",
+        label: "Typeface",
+        options: canvasFontFamilyOptions.map((family) => ({
+          label: family.name,
+          value: family.id,
+        })),
+      },
     },
-    render: ({ children, title, theme, typographyScale }) => (
+    render: ({ children, title, theme, typographyScale, fontFamily }) => (
       <main
         aria-label={title ? `${title} frames` : "Canvas frames"}
         className="grid min-h-full w-full content-start gap-6 bg-[var(--canvas-stage)] px-3  text-foreground transition-[background-color,color] duration-200 sm:px-4 lg:px-6"
         style={getCanvasThemeStyle(
           theme ?? DEFAULT_CANVAS_THEME,
           typographyScale ?? DEFAULT_CANVAS_TYPOGRAPHY_SCALE,
+          fontFamily ?? DEFAULT_CANVAS_FONT_FAMILY,
         )}
       >
         {children}
@@ -860,6 +894,20 @@ export const canvasPuckConfig: Config<CanvasComponents, CanvasRootProps> = {
           min: 0,
           max: 11,
         },
+        isFixed: {
+          type: "radio",
+          label: "Fixed size",
+          options: [
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ],
+        },
+        stackSize: {
+          type: "number",
+          label: "Stack size (fixed only)",
+          min: 1,
+          max: 12,
+        },
         caption: { type: "textarea", label: "Caption" },
       },
       defaultProps: {
@@ -867,6 +915,7 @@ export const canvasPuckConfig: Config<CanvasComponents, CanvasRootProps> = {
         values: [{ value: "8" }, { value: "5" }, { value: "0" }],
         highlightedIndex: 2,
         caption: "Push adds to the top; pop removes from the top.",
+        isFixed: false,
       },
       render: StackBlock,
     },

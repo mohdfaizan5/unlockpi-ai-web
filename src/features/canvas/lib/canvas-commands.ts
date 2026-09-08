@@ -1,11 +1,21 @@
+import {
+  canPushStack,
+  clampStackToCapacity,
+  popStack,
+  pushStack,
+  type StackCapacity,
+} from "@/components/data-structure/stack-model";
 import type {
   ArrayBlockProps,
   CanvasAiAction,
   CanvasCommandResult,
   CanvasDocument,
   SlideBlockProps,
+  StackBlockProps,
 } from "@/features/canvas/types/canvas-types";
 import { createCanvasId } from "@/features/canvas/lib/canvas-templates";
+
+const DEFAULT_STACK_SIZE = 5;
 
 type CanvasItem = CanvasDocument["content"][number];
 type SlideItem = CanvasItem & {
@@ -13,6 +23,7 @@ type SlideItem = CanvasItem & {
   props: SlideBlockProps & { id: string; content: CanvasItem[] };
 };
 type ArrayItem = CanvasItem & { type: "ArrayBlock"; props: ArrayBlockProps & { id: string } };
+type StackItem = CanvasItem & { type: "StackBlock"; props: StackBlockProps & { id: string } };
 
 function cloneDocument(document: CanvasDocument): CanvasDocument {
   return structuredClone(document);
@@ -39,6 +50,17 @@ function isSlideItem(item: CanvasItem): item is SlideItem {
 
 function isArrayItem(item: CanvasItem): item is ArrayItem {
   return item.type === "ArrayBlock";
+}
+
+function isStackItem(item: CanvasItem): item is StackItem {
+  return item.type === "StackBlock";
+}
+
+/** Builds the `StackCapacity` a given stack block currently enforces. */
+function stackCapacityOf(stack: StackItem): StackCapacity {
+  return stack.props.isFixed
+    ? { isFixed: true, size: stack.props.stackSize ?? DEFAULT_STACK_SIZE }
+    : { isFixed: false };
 }
 
 function getSlides(document: CanvasDocument) {
@@ -117,6 +139,53 @@ function getTargetArray(
 
 function getArrays(document: CanvasDocument) {
   return getSlides(document).flatMap((slide) => getSlideContent(slide).filter(isArrayItem));
+}
+
+/**
+ * Pick the stack the AI/user is talking about. Same precedence as
+ * `getTargetArray` — kept as a separate function rather than a shared
+ * generic because the two item shapes (`ArrayItem` vs `StackItem`) differ
+ * and a premature abstraction here would cost more than the ~15 lines of
+ * duplication it would save:
+ *   1. Explicit id (componentId).
+ *   2. Highlighted stack on the active slide.
+ *   3. Most-recently-added stack on the active slide.
+ *   4. First stack on the active slide.
+ *   5. First stack anywhere.
+ */
+function getTargetStack(
+  document: CanvasDocument,
+  componentId?: string,
+  activeSlideId?: string | null,
+) {
+  if (componentId) {
+    for (const slide of getSlides(document)) {
+      const match = getSlideContent(slide).find(
+        (item): item is StackItem =>
+          isStackItem(item) && item.props.id === componentId,
+      );
+      if (match) return match;
+    }
+    return null;
+  }
+
+  const activeSlide = getActiveSlide(document, activeSlideId ?? null);
+  if (activeSlide) {
+    const stacksOnActive = getSlideContent(activeSlide).filter(isStackItem);
+    if (stacksOnActive.length) {
+      const highlighted = stacksOnActive.find(
+        (stack) => typeof stack.props.highlightedIndex === "number",
+      );
+      if (highlighted) return highlighted;
+      return stacksOnActive[stacksOnActive.length - 1];
+    }
+  }
+
+  for (const slide of getSlides(document)) {
+    const stack = getSlideContent(slide).find(isStackItem);
+    if (stack) return stack;
+  }
+  return null;
 }
 
 function normalizeArrayValues(values: string[]) {
@@ -414,17 +483,69 @@ export function applyCanvasAction(
   }
 
   if (action.action === "add_stack_block") {
+    const isFixed = Boolean(action.isFixed);
+    const stackSize = action.stackSize ?? DEFAULT_STACK_SIZE;
     nextSlideId = pushIntoActiveSlide(nextDocument, nextSlideId, {
       type: "StackBlock",
       props: {
         id: createCanvasId("stack"),
         title: action.title?.trim() || "Stack A",
-        values: normalizeArrayValues(action.values?.length ? action.values : ["8", "5", "0"]),
+        values: normalizeArrayValues(
+          clampStackToCapacity(
+            action.values?.length ? action.values : ["8", "5", "0"],
+            isFixed ? { isFixed: true, size: stackSize } : { isFixed: false },
+          ),
+        ),
         highlightedIndex: undefined,
-        caption: "Push adds to the top; pop removes from the top.",
+        caption: isFixed
+          ? `Fixed stack, capacity ${stackSize}. Push adds to the top; pop removes from the top.`
+          : "Push adds to the top; pop removes from the top.",
+        isFixed,
+        stackSize: isFixed ? stackSize : undefined,
       },
     });
     message = "Added a stack block to the active frame.";
+  }
+
+  if (action.action === "push_stack_value") {
+    const stack = getTargetStack(nextDocument, action.componentId, nextSlideId);
+    if (stack) {
+      const capacity = stackCapacityOf(stack);
+      const currentValues = stack.props.values.map((item) => item.value);
+      if (!canPushStack(currentValues.length, capacity)) {
+        message = `${stack.props.title} is full (capacity ${capacity.isFixed ? capacity.size : "∞"}); pop before pushing.`;
+      } else {
+        const value = (action.value ?? "").trim() || String(currentValues.length);
+        stack.props.values = normalizeArrayValues(
+          pushStack(currentValues, value, capacity),
+        );
+        message = `Pushed ${value} onto ${stack.props.title}.`;
+      }
+    } else {
+      message = "Could not find a stack block to push onto.";
+    }
+  }
+
+  if (action.action === "pop_stack_value") {
+    const stack = getTargetStack(nextDocument, action.componentId, nextSlideId);
+    if (stack) {
+      const currentValues = stack.props.values.map((item) => item.value);
+      if (currentValues.length === 0) {
+        message = `${stack.props.title} is already empty.`;
+      } else {
+        const popped = currentValues[currentValues.length - 1];
+        stack.props.values = normalizeArrayValues(popStack(currentValues));
+        if (
+          typeof stack.props.highlightedIndex === "number" &&
+          stack.props.highlightedIndex >= stack.props.values.length
+        ) {
+          stack.props.highlightedIndex = undefined;
+        }
+        message = `Popped ${popped} from ${stack.props.title}.`;
+      }
+    } else {
+      message = "Could not find a stack block to pop from.";
+    }
   }
 
   if (action.action === "add_queue_block") {

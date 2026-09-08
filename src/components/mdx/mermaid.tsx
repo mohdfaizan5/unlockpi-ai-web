@@ -35,9 +35,18 @@ function MermaidSkeleton() {
 
 interface MdxMermaidProps {
   chart: string;
+  /**
+   * CSS font-family value baked into the rendered SVG's text via mermaid's
+   * `themeVariables.fontFamily`. Mermaid ignores ambient page CSS for its
+   * text — it bakes font-family into the SVG at render time — so a caller
+   * that wants diagrams to follow a surrounding typeface (e.g. the canvas's
+   * selected typeface) must pass it explicitly. Omitted = mermaid's own
+   * default, unchanged for callers outside that context (blog/MDX pages).
+   */
+  fontFamily?: string;
 }
 
-export function MdxMermaid({ chart }: MdxMermaidProps) {
+export function MdxMermaid({ chart, fontFamily }: MdxMermaidProps) {
   const idRef = useRef(`mdx-mermaid-${++sequence}`);
   const [svg, setSvg] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +119,7 @@ export function MdxMermaid({ chart }: MdxMermaidProps) {
             clusterBkg: "#7f1d1d",
             clusterBorder: "#dc2626",
             borderRadius: 22,
+            ...(fontFamily ? { fontFamily } : {}),
           },
           flowchart: {
             htmlLabels: true,
@@ -138,7 +148,7 @@ export function MdxMermaid({ chart }: MdxMermaidProps) {
       const stale = document.getElementById(idRef.current);
       if (stale) stale.remove();
     };
-  }, [chart]);
+  }, [chart, fontFamily]);
 
   if (error) {
     return (

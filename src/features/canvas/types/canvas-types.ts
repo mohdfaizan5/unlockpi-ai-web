@@ -11,11 +11,21 @@ export type CanvasThemeId =
 
 export type CanvasTypographyScale = "base" | "medium" | "small";
 
+/**
+ * Canvas text typeface — separate axis from `CanvasTypographyScale` (which
+ * only controls size). "modern" is the existing default (Inter/Manrope/Space
+ * Grotesk, already loaded globally). "handwriting" and "old-school" are
+ * per-canvas opt-ins whose fonts are only fetched when actually selected —
+ * see the @font-face comment in globals.css.
+ */
+export type CanvasFontFamily = "modern" | "handwriting" | "old-school";
+
 export type CanvasRootProps = {
   title: string;
   subject: CanvasSubject;
   theme: CanvasThemeId;
   typographyScale: CanvasTypographyScale;
+  fontFamily: CanvasFontFamily;
 };
 
 export type SlideBlockProps = {
@@ -55,6 +65,15 @@ export type StackBlockProps = {
   visitedIndices?: number[];
   traversalTarget?: number;
   caption: string;
+  /**
+   * When true, push/pop (from voice or the fields panel) enforce `stackSize`
+   * as a hard capacity via the shared rules in
+   * `src/components/data-structure/stack-model.ts` — a push beyond capacity
+   * is a no-op with an explanatory message, not a silent overflow.
+   */
+  isFixed?: boolean;
+  /** Only used when `isFixed`. Defaults to 5 — see stack-model.ts's default. */
+  stackSize?: number;
 };
 
 export type QueueBlockProps = {
@@ -202,7 +221,15 @@ export type CanvasAiAction =
   | { action: "append_array_value"; componentId?: string; value?: string }
   | { action: "pop_array_value"; componentId?: string }
   | { action: "duplicate_array_block"; componentId?: string; title?: string; appendValue?: string }
-  | { action: "add_stack_block"; title?: string; values?: string[] }
+  | {
+      action: "add_stack_block";
+      title?: string;
+      values?: string[];
+      isFixed?: boolean;
+      stackSize?: number;
+    }
+  | { action: "push_stack_value"; componentId?: string; value?: string }
+  | { action: "pop_stack_value"; componentId?: string }
   | { action: "add_queue_block"; title?: string; values?: string[] }
   | { action: "add_linked_list_block"; values?: string[] }
   | { action: "add_checkpoint"; question?: string; answer?: string };

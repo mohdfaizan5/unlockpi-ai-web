@@ -12,11 +12,13 @@ import { getCanvasAppThemeVars } from "@/features/canvas/components/canvas-puck-
 import { getCanvasPresentationFrames } from "@/features/canvas/lib/canvas-presentation";
 import type { CanvasRecord } from "@/features/canvas/lib/canvas-records";
 import {
+  DEFAULT_CANVAS_FONT_FAMILY,
   DEFAULT_CANVAS_THEME,
   DEFAULT_CANVAS_TYPOGRAPHY_SCALE,
   getCanvasThemeStyle,
 } from "@/features/canvas/lib/canvas-theme";
 import type {
+  CanvasFontFamily,
   CanvasThemeId,
   CanvasTypographyScale,
 } from "@/features/canvas/types/canvas-types";
@@ -43,6 +45,8 @@ export function CanvasShareView({ canvas }: { canvas: CanvasRecord }) {
   const theme = (rootProps?.theme ?? DEFAULT_CANVAS_THEME) as CanvasThemeId;
   const typographyScale = (rootProps?.typographyScale ??
     DEFAULT_CANVAS_TYPOGRAPHY_SCALE) as CanvasTypographyScale;
+  const fontFamily = (rootProps?.fontFamily ??
+    DEFAULT_CANVAS_FONT_FAMILY) as CanvasFontFamily;
   const [activeFrameId, setActiveFrameId] = useState<string | null>(
     canvas.activeFrameId ?? frames[0]?.id ?? null,
   );
@@ -132,7 +136,7 @@ export function CanvasShareView({ canvas }: { canvas: CanvasRecord }) {
       className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground"
       style={{
         ...getCanvasAppThemeVars(false),
-        ...getCanvasThemeStyle(theme, typographyScale),
+        ...getCanvasThemeStyle(theme, typographyScale, fontFamily),
       }}
     >
       <header className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/80 bg-background/92 px-4 backdrop-blur-xl sm:px-6">

@@ -7,6 +7,14 @@ import { cn } from "@/lib/utils";
 type ArrayValue = string | number;
 
 export type ArrayStripProps = {
+  /**
+   * Values by index, left to right — `data[0]` renders first (leftmost).
+   *
+   * @example
+   * ```tsx
+   * <ArrayStrip data={["8", "5", "0", "1"]} showIndex activeIndex={2} />
+   * ```
+   */
   data: ArrayValue[];
   disabledElements?: number[];
   visitedIndices?: number[];

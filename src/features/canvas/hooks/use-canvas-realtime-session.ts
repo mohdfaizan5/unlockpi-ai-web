@@ -30,7 +30,9 @@ export type CanvasRealtimeAction = {
     | "clear_array_highlight"
     | "append_array_value"
     | "pop_array_value"
-    | "duplicate_array";
+    | "duplicate_array"
+    | "push_stack"
+    | "pop_stack";
   frame_number?: number;
   index?: number;
   length?: number;

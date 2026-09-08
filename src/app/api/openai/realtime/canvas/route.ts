@@ -101,9 +101,11 @@ export async function POST(request: NextRequest) {
                       "append_array_value",
                       "pop_array_value",
                       "duplicate_array",
+                      "push_stack",
+                      "pop_stack",
                     ],
                     description:
-                      "The live presentation action. Array actions always target the CURRENT array (the one highlighted or most recently added/discussed on the visible frame) unless the teacher clearly points at a different one — pick the smallest action that matches: append_array_value / pop_array_value to grow or shrink the current array by one, set_array / resize_array to replace or size it, duplicate_array to copy it as a fresh block. Only use add_array when the teacher explicitly wants a NEW array from scratch.",
+                      "The live presentation action. Array and stack actions always target the CURRENT one (the block highlighted or most recently added/discussed on the visible frame) unless the teacher clearly points at a different one. For arrays, pick the smallest action that matches: append_array_value / pop_array_value to grow or shrink the current array by one, set_array / resize_array to replace or size it, duplicate_array to copy it as a fresh block. For a stack (LIFO — the top holds the most recently pushed item), use push_stack / pop_stack; if the current stack is fixed-size and full, push_stack is a no-op and the tool result will say so — tell the teacher instead of retrying. Only use add_array / add_stack_block when the teacher explicitly wants a NEW block from scratch.",
                   },
                   frame_number: {
                     type: "integer",
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
                   value: {
                     type: "string",
                     description:
-                      "The single value to append (append_array_value) or to append to a duplicated copy (duplicate_array).",
+                      "The single value to append (append_array_value), push (push_stack), or append to a duplicated copy (duplicate_array).",
                   },
                   values: {
                     type: "array",
@@ -251,6 +253,12 @@ function buildSessionInstructions(
     // Array-targeting contract — this is what stops us hitting the wrong array.
     "IMPORTANT — the CURRENT array: All array actions (append_array_value, pop_array_value, set_array, resize_array, highlight_array_index, duplicate_array) implicitly target the CURRENT array on the visible frame — which the client resolves as the highlighted one, else the most recently added / most recently discussed one on that frame. Never treat 'the array' as the first one in the whole document.",
     "Pick the smallest action that matches the teacher's intent: 'add an element / push / append X' → append_array_value with value X (NOT add_array — that creates a NEW block). 'pop / remove the last one / take one off' → pop_array_value on the current array. 'replace with…' → set_array. 'make it length N' → resize_array. 'copy this array' or 'make another one like this and add X' → duplicate_array (optionally with value X). Only use add_array when the teacher asks for a wholly new example from scratch.",
+    // Stack-targeting contract — mirrors the array one above. A stack is
+    // LIFO: 'push' always means the CURRENT stack's top, 'pop' always means
+    // removing the CURRENT stack's top. There is no set/resize/duplicate for
+    // stacks — only push and pop are meaningful LIFO operations.
+    "IMPORTANT — the CURRENT stack: push_stack and pop_stack implicitly target the CURRENT stack on the visible frame — the one highlighted, else the most recently added/discussed stack on that frame. Never assume 'the stack' is the first one in the whole document.",
+    "'push X / add X to the stack' → push_stack with value X. 'pop / remove the top' → pop_stack. Some stacks are fixed-size: if push_stack's tool result says the stack is full, tell the teacher it's at capacity rather than retrying the call.",
     "When the teacher asks you to EXPLAIN, DEFINE, DIAGRAM, TABULATE, or show a CODE EXAMPLE for something, call show_in_panel with the right type. This puts supporting material in the side panel next to the slide and never changes the teacher's authored frames. Prefer this over navigating when the teacher wants new supporting content rather than an existing frame.",
     // The sync contract — this is what keeps narration locked to the visuals.
     "STAY IN SYNC — this is critical: Never describe a frame that is not currently shown. To talk about a frame, navigate to it FIRST, then explain only what is now on screen. Never explain ahead of the visuals.",

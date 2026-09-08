@@ -3,7 +3,10 @@ import type {
   CanvasSubject,
   CanvasTemplateKey,
 } from "@/features/canvas/types/canvas-types";
-import { DEFAULT_CANVAS_THEME } from "@/features/canvas/lib/canvas-theme";
+import {
+  DEFAULT_CANVAS_FONT_FAMILY,
+  DEFAULT_CANVAS_THEME,
+} from "@/features/canvas/lib/canvas-theme";
 
 export type CanvasStatus = "draft" | "ready" | "presenting" | "archived";
 
@@ -94,6 +97,7 @@ export function mapCanvasRecord(row: CanvasRow): CanvasRecord {
             title: row.title,
             theme: DEFAULT_CANVAS_THEME,
             typographyScale: "base",
+            fontFamily: DEFAULT_CANVAS_FONT_FAMILY,
           },
         },
         content: [],

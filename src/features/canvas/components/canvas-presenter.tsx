@@ -905,5 +905,11 @@ function toCanvasAction(action: CanvasRealtimeAction): CanvasAiAction | null {
       appendValue: action.value,
     };
   }
+  if (action.action === "push_stack") {
+    return { action: "push_stack_value", value: action.value };
+  }
+  if (action.action === "pop_stack") {
+    return { action: "pop_stack_value" };
+  }
   return null;
 }

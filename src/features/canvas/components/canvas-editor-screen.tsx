@@ -5,6 +5,7 @@ import "@puckeditor/core/puck.css";
 import { Puck } from "@puckeditor/core";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
 import { CanvasEditorHeader } from "@/features/canvas/components/editor/canvas-editor-header";
 import { CanvasEditorInspectorPanel } from "@/features/canvas/components/editor/canvas-editor-inspector-panel";
 import { CanvasEditorLeftMicroRail } from "@/features/canvas/components/editor/canvas-editor-left-micro-rail";
@@ -19,6 +20,7 @@ import {
 } from "@/features/canvas/components/canvas-puck-overrides";
 import { useCanvasEditorController } from "@/features/canvas/hooks/use-canvas-editor-controller";
 import type { CanvasEditorPageModel } from "@/features/canvas/types/canvas-other-types";
+import { cn } from "@/lib/utils";
 
 type CanvasEditorScreenProps = {
   model: CanvasEditorPageModel;
@@ -30,8 +32,29 @@ export function CanvasEditorScreen({ model }: CanvasEditorScreenProps) {
   return (
     <section
       aria-label="Canvas editor"
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground"
+      className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground"
     >
+      {/*
+        Lives OUTSIDE the <Puck key={puckRevision}> boundary below on
+        purpose: an appearance change bumps that key, which unmounts and
+        remounts the ENTIRE editor (header, sidebar, inspector, every
+        frame) — if this overlay were inside it, it would vanish in the
+        exact same remount it's meant to bridge. Sitting as a sibling means
+        it survives the remount and stays visible for its whole duration.
+      */}
+      <div
+        aria-hidden={!controller.isAppearancePending}
+        className={cn(
+          "pointer-events-none absolute inset-0 z-50 grid place-items-center bg-background/55 backdrop-blur-sm transition-opacity duration-150",
+          controller.isAppearancePending ? "opacity-100" : "opacity-0",
+        )}
+      >
+        <div className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium shadow-lg">
+          <Spinner className="size-4" />
+          Updating appearance…
+        </div>
+      </div>
+
       <Puck<typeof canvasPuckConfig>
         key={`canvas-${controller.puckRevision}`}
         config={canvasPuckConfig}
@@ -89,6 +112,7 @@ export function CanvasEditorScreen({ model }: CanvasEditorScreenProps) {
                   controller.actions.updateCanvasAppearance,
               }}
               activeCanvasTheme={controller.activeCanvasTheme}
+              activeFontFamily={controller.activeFontFamily}
               activeSlideId={controller.activeSlideId}
               activeTypographyScale={controller.activeTypographyScale}
               commandDraft={controller.commandDraft}

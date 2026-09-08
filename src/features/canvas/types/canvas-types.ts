@@ -199,6 +199,9 @@ export type CanvasAiAction =
   | { action: "set_array_values"; componentId?: string; values: string[] }
   | { action: "resize_array"; componentId?: string; length: number }
   | { action: "highlight_array_index"; componentId?: string; index?: number }
+  | { action: "append_array_value"; componentId?: string; value?: string }
+  | { action: "pop_array_value"; componentId?: string }
+  | { action: "duplicate_array_block"; componentId?: string; title?: string; appendValue?: string }
   | { action: "add_stack_block"; title?: string; values?: string[] }
   | { action: "add_queue_block"; title?: string; values?: string[] }
   | { action: "add_linked_list_block"; values?: string[] }

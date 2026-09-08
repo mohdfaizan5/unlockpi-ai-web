@@ -65,17 +65,53 @@ function getActiveSlide(document: CanvasDocument, activeSlideId: string | null) 
   return slides.find((slide) => slide.props.id === activeSlideId) ?? slides[0] ?? null;
 }
 
-function getTargetArray(document: CanvasDocument, componentId?: string) {
-  for (const slide of getSlides(document)) {
-    const array = getSlideContent(slide).find((item): item is ArrayItem => {
-      return isArrayItem(item) && (!componentId || item.props.id === componentId);
-    });
+/**
+ * Pick the array the AI/user is talking about.
+ *
+ * Precedence (this order matters — the previous version just returned the
+ * first array anywhere in the document, so "add an element" and "pop" kept
+ * hitting the wrong array when the active slide had several):
+ *   1. Explicit id (componentId) — never overridden if present.
+ *   2. Highlighted array on the active slide — if one is currently
+ *      highlighted, that's what the teacher is discussing.
+ *   3. Most-recent array on the active slide — the last one appended, i.e.
+ *      the one just added or being built up live.
+ *   4. First array on the active slide — as a fall-back before leaving the
+ *      slide at all.
+ *   5. First array anywhere — last-resort so a stale reference still resolves.
+ */
+function getTargetArray(
+  document: CanvasDocument,
+  componentId?: string,
+  activeSlideId?: string | null,
+) {
+  if (componentId) {
+    for (const slide of getSlides(document)) {
+      const match = getSlideContent(slide).find(
+        (item): item is ArrayItem =>
+          isArrayItem(item) && item.props.id === componentId,
+      );
+      if (match) return match;
+    }
+    return null;
+  }
 
-    if (array) {
-      return array;
+  const activeSlide = getActiveSlide(document, activeSlideId ?? null);
+  if (activeSlide) {
+    const arraysOnActive = getSlideContent(activeSlide).filter(isArrayItem);
+    if (arraysOnActive.length) {
+      const highlighted = arraysOnActive.find(
+        (array) => typeof array.props.highlightedIndex === "number",
+      );
+      if (highlighted) return highlighted;
+      return arraysOnActive[arraysOnActive.length - 1];
     }
   }
 
+  for (const slide of getSlides(document)) {
+    const array = getSlideContent(slide).find(isArrayItem);
+    if (array) return array;
+  }
   return null;
 }
 
@@ -278,7 +314,7 @@ export function applyCanvasAction(
   }
 
   if (action.action === "set_array_values") {
-    const array = getTargetArray(nextDocument, action.componentId);
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
     if (array) {
       array.props.values = normalizeArrayValues(action.values);
       if (
@@ -294,7 +330,7 @@ export function applyCanvasAction(
   }
 
   if (action.action === "resize_array") {
-    const array = getTargetArray(nextDocument, action.componentId);
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
     if (array) {
       const nextLength = Math.max(0, Math.min(12, Math.round(action.length)));
       const currentValues = array.props.values.map((item) => item.value);
@@ -308,7 +344,7 @@ export function applyCanvasAction(
   }
 
   if (action.action === "highlight_array_index") {
-    const array = getTargetArray(nextDocument, action.componentId);
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
     if (array) {
       array.props.highlightedIndex = action.index;
       message =
@@ -317,6 +353,63 @@ export function applyCanvasAction(
           : `Cleared the highlight on ${array.props.title}.`;
     } else {
       message = "Could not find an array block to highlight.";
+    }
+  }
+
+  if (action.action === "append_array_value") {
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
+    if (array) {
+      const nextValue = (action.value ?? "").trim();
+      const fallback = String(array.props.values.length);
+      const value = nextValue || fallback;
+      const nextValues = [...array.props.values, { value }];
+      if (nextValues.length > 12) {
+        message = `${array.props.title} is at the 12-element cap; can't append.`;
+      } else {
+        array.props.values = nextValues;
+        message = `Appended ${value} to ${array.props.title}.`;
+      }
+    } else {
+      message = "Could not find an array block to append to.";
+    }
+  }
+
+  if (action.action === "pop_array_value") {
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
+    if (array) {
+      if (array.props.values.length === 0) {
+        message = `${array.props.title} is already empty.`;
+      } else {
+        const popped = array.props.values[array.props.values.length - 1].value;
+        array.props.values = array.props.values.slice(0, -1);
+        if (
+          typeof array.props.highlightedIndex === "number" &&
+          array.props.highlightedIndex >= array.props.values.length
+        ) {
+          array.props.highlightedIndex = undefined;
+        }
+        message = `Popped ${popped} from ${array.props.title}.`;
+      }
+    } else {
+      message = "Could not find an array block to pop from.";
+    }
+  }
+
+  if (action.action === "duplicate_array_block") {
+    const source = getTargetArray(nextDocument, action.componentId, nextSlideId);
+    if (source) {
+      const duplicate = cloneItemWithNewIds(source) as ArrayItem;
+      duplicate.props.title = action.title?.trim() || `${source.props.title} copy`;
+      duplicate.props.highlightedIndex = undefined;
+      if (action.appendValue !== undefined) {
+        const value = String(action.appendValue).trim() ||
+          String(duplicate.props.values.length);
+        duplicate.props.values = [...duplicate.props.values, { value }];
+      }
+      nextSlideId = pushIntoActiveSlide(nextDocument, nextSlideId, duplicate);
+      message = `Duplicated ${source.props.title} as ${duplicate.props.title}.`;
+    } else {
+      message = "Could not find an array block to duplicate.";
     }
   }
 

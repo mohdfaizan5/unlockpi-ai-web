@@ -24,7 +24,17 @@ export default async function DashboardLayout({
     redirect("/auth/login");
   }
 
-  await supabase.rpc("touch_user_activity");
+  // Fire-and-forget: this RPC used to `await` here on EVERY dashboard
+  // navigation, adding a Supabase round-trip (~100–300ms) to every route
+  // change and making the whole app feel like it stalls between clicks. It's
+  // just an activity heartbeat — nothing on this page reads from it — so run
+  // it in the background and let the render proceed. `.catch` prevents an
+  // unhandled promise rejection if the RPC fails.
+  void supabase.rpc("touch_user_activity").then(({ error: touchError }) => {
+    if (touchError) {
+      console.warn("[dashboard] touch_user_activity failed:", touchError.message);
+    }
+  });
 
   const displayName =
     (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name) ||

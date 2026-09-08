@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
+
 import { cn } from "@/lib/utils";
 
 type ArrayValue = string | number;
@@ -94,44 +96,65 @@ export function ArrayStrip({
           ) : null}
 
           <div className="flex gap-2">
-            {data.map((item, index) => {
-              const isDisabled = disabledElements.includes(index);
-              const isActive = activeIndex === index;
-              const isVisited = visitedIndices.includes(index) || isActive;
-              const isTargetHit = isTraversing && isVisited && index === traversalTarget;
-              const isTraversalMiss = isTraversing && isVisited && !isTargetHit;
-              const isPlainActive = !isTraversing && isActive;
+            {/*
+              Keyed on `index` so mutations to a single slot (set/replace)
+              animate value swap in place, and only the LAST slot animates on
+              push/pop — exactly matches the mental model of "the new one just
+              arrived / the last one just left". `popLayout` keeps a leaving
+              cell out of the flex line so the row doesn't jump. */}
+            <AnimatePresence initial={false} mode="popLayout">
+              {data.map((item, index) => {
+                const isDisabled = disabledElements.includes(index);
+                const isActive = activeIndex === index;
+                const isVisited = visitedIndices.includes(index) || isActive;
+                const isTargetHit = isTraversing && isVisited && index === traversalTarget;
+                const isTraversalMiss = isTraversing && isVisited && !isTargetHit;
+                const isPlainActive = !isTraversing && isActive;
 
-              return (
-                <div key={`${item}-${index}`} className="grid justify-items-center gap-2">
-                  {showIndex ? (
-                    <span
+                return (
+                  <motion.div
+                    key={index}
+                    layout
+                    initial={{ opacity: 0, scale: 0.6, y: -8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.6, y: -8 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 380,
+                      damping: 28,
+                      mass: 0.6,
+                    }}
+                    className="grid justify-items-center gap-2"
+                  >
+                    {showIndex ? (
+                      <span
+                        className={cn(
+                          "text-sm text-muted-foreground",
+                          dimIndices && "opacity-35",
+                        )}
+                      >
+                        {index}
+                      </span>
+                    ) : null}
+
+                    <div
                       className={cn(
-                        "text-sm text-muted-foreground",
-                        dimIndices && "opacity-35",
+                        "flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-background text-lg font-semibold tracking-tight text-foreground shadow-[0_10px_24px_rgba(0,0,0,0.24)] transition md:h-12 md:w-12 md:text-xl",
+                        isDisabled && "opacity-30",
+                        dimElements && "opacity-40",
+                        isTraversalMiss && "border-border bg-muted/50 opacity-40",
+                        isTargetHit &&
+                          "border-emerald-500/60 bg-emerald-500 text-white",
+                        isPlainActive &&
+                          "border-primary/50 bg-primary text-primary-foreground",
                       )}
                     >
-                      {index}
-                    </span>
-                  ) : null}
-
-                  <div
-                    className={cn(
-                      "flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-background text-lg font-semibold tracking-tight text-foreground shadow-[0_10px_24px_rgba(0,0,0,0.24)] transition md:h-12 md:w-12 md:text-xl",
-                      isDisabled && "opacity-30",
-                      dimElements && "opacity-40",
-                      isTraversalMiss && "border-border bg-muted/50 opacity-40",
-                      isTargetHit &&
-                        "border-emerald-500/60 bg-emerald-500 text-white",
-                      isPlainActive &&
-                        "border-primary/50 bg-primary text-primary-foreground",
-                    )}
-                  >
-                    {item}
-                  </div>
-                </div>
-              );
-            })}
+                      {item}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         </div>
       </div>

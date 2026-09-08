@@ -348,7 +348,7 @@ export function CanvasPresenter({
           // eating the top 4rem of every frame. Slight bg translucency so
           // the slide beneath is faintly visible — reads as a temporary
           // control layer, not a page chrome.
-          "absolute inset-x-0 top-0 z-30  flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-border bg-background/80 px-4 py-2 backdrop-blur-xl transition-[opacity,transform] duration-300 ease-out sm:px-6",
+          "absolute inset-x-0 top-0 z-30  flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-border bg-background/80 px-4 py-2 backdrop-blur-md transition-[opacity,transform] duration-300 ease-out sm:px-6",
           topVisible
             ? "translate-y-0 opacity-100"
             : "pointer-events-none -translate-y-full opacity-0",
@@ -468,7 +468,7 @@ export function CanvasPresenter({
           className={cn(
             // Pinned just below the header — fades with it so nothing floats
             // in the middle of the frame when chrome is hidden.
-            "pointer-events-none absolute  left-1/2 top-[4.75rem] z-30 flex max-w-[80vw] -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-1 text-[11px] font-medium backdrop-blur-xl transition-opacity duration-300",
+            "pointer-events-none absolute  left-1/2 top-[4.75rem] z-30 flex max-w-[80vw] -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-1 text-[11px] font-medium backdrop-blur-md transition-opacity duration-300",
             topVisible ? "opacity-100" : "opacity-0",
           )}
         >
@@ -489,7 +489,7 @@ export function CanvasPresenter({
       {hasLiveChanges ? (
         <div
           className={cn(
-            "absolute left-4 top-[4.75rem] z-30 flex items-center gap-1.5 rounded-full border border-border bg-card/90 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-xl transition-opacity duration-300",
+            "absolute left-4 top-[4.75rem] z-30 flex items-center gap-1.5 rounded-full border border-border bg-card/90 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-md transition-opacity duration-300",
             topVisible ? "opacity-100" : "opacity-0",
           )}
         >
@@ -578,7 +578,7 @@ export function CanvasPresenter({
       <footer
         {...edgeReveal.bottomHoverHandlers}
         className={cn(
-          "absolute inset-x-0 bottom-0 z-30 flex h-12 items-center justify-center gap-1 border-t border-border bg-background/80 px-4 backdrop-blur-xl transition-[opacity,transform] duration-300 ease-out",
+          "absolute inset-x-0 bottom-0 z-30 flex h-12 items-center justify-center gap-1 border-t border-border bg-background/80 px-4 backdrop-blur-md transition-[opacity,transform] duration-300 ease-out",
           bottomVisible
             ? "translate-y-0 opacity-100"
             : "pointer-events-none translate-y-full opacity-0",
@@ -605,7 +605,7 @@ export function CanvasPresenter({
         // caption doesn't linger over the frame after the chrome goes.
         <div
           className={cn(
-            "pointer-events-none absolute bottom-20 left-1/2 z-30 w-[min(90%,42rem)] -translate-x-1/2 rounded-xl border border-border bg-background/85 px-4 py-2.5 text-center text-sm leading-snug text-foreground shadow-lg backdrop-blur-xl transition-opacity duration-300",
+            "pointer-events-none absolute bottom-20 left-1/2 z-30 w-[min(90%,42rem)] -translate-x-1/2 rounded-xl border border-border bg-background/85 px-4 py-2.5 text-center text-sm leading-snug text-foreground shadow-lg backdrop-blur-md transition-opacity duration-300",
             bottomVisible ? "opacity-100" : "opacity-0",
           )}
         >
@@ -614,7 +614,7 @@ export function CanvasPresenter({
       ) : null}
 
       {realtimeSession.error ? (
-        <div className="absolute bottom-16 left-1/2 z-30 -translate-x-1/2 rounded-full border border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive shadow-xl backdrop-blur-xl">
+        <div className="absolute bottom-16 left-1/2 z-30 -translate-x-1/2 rounded-full border border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive shadow-xl backdrop-blur-md">
           {realtimeSession.error}
         </div>
       ) : null}
@@ -736,7 +736,7 @@ function FrameArrow({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "absolute z-20 grid size-11 place-items-center rounded-full border bg-card/80 text-foreground shadow-lg backdrop-blur-xl transition hover:bg-accent disabled:pointer-events-none disabled:opacity-20",
+        "absolute z-20 grid size-11 place-items-center rounded-full border bg-card/80 text-foreground shadow-lg backdrop-blur-md transition hover:bg-accent disabled:pointer-events-none disabled:opacity-20",
         direction === "next" ? "right-2 sm:right-5" : "left-2 sm:left-5",
       )}
     >
@@ -757,7 +757,7 @@ function FrameOverview({
   onSelect: (index: number) => void;
 }) {
   return (
-    <div className="absolute inset-0 z-40 overflow-y-auto bg-background/95 p-5 backdrop-blur-xl sm:p-8">
+    <div className="absolute inset-0 z-40 overflow-y-auto bg-background/95 p-5 backdrop-blur-md sm:p-8">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -891,6 +891,19 @@ function toCanvasAction(action: CanvasRealtimeAction): CanvasAiAction | null {
   }
   if (action.action === "clear_array_highlight") {
     return { action: "highlight_array_index" };
+  }
+  if (action.action === "append_array_value") {
+    return { action: "append_array_value", value: action.value };
+  }
+  if (action.action === "pop_array_value") {
+    return { action: "pop_array_value" };
+  }
+  if (action.action === "duplicate_array") {
+    return {
+      action: "duplicate_array_block",
+      title: action.title,
+      appendValue: action.value,
+    };
   }
   return null;
 }

@@ -27,7 +27,7 @@ export function VisualsHero() {
   const Icon = HERO_MORPH_ICONS[iconIndex];
 
   return (
-    <div className="mb-6 flex items-center gap-4 justify-center flex-col mt-24 mb-10">
+    <div className="mb-6 flex items-center gap-4 justify-center flex-col mt-12 mb-10">
       <div className="relative grid size-14 shrink-0 place-items-center ">
         <AnimatePresence mode="wait">
           <motion.div

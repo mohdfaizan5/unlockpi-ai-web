@@ -1,11 +1,21 @@
+import {
+  canPushStack,
+  clampStackToCapacity,
+  popStack,
+  pushStack,
+  type StackCapacity,
+} from "@/components/data-structure/stack-model";
 import type {
   ArrayBlockProps,
   CanvasAiAction,
   CanvasCommandResult,
   CanvasDocument,
   SlideBlockProps,
+  StackBlockProps,
 } from "@/features/canvas/types/canvas-types";
 import { createCanvasId } from "@/features/canvas/lib/canvas-templates";
+
+const DEFAULT_STACK_SIZE = 5;
 
 type CanvasItem = CanvasDocument["content"][number];
 type SlideItem = CanvasItem & {
@@ -13,6 +23,7 @@ type SlideItem = CanvasItem & {
   props: SlideBlockProps & { id: string; content: CanvasItem[] };
 };
 type ArrayItem = CanvasItem & { type: "ArrayBlock"; props: ArrayBlockProps & { id: string } };
+type StackItem = CanvasItem & { type: "StackBlock"; props: StackBlockProps & { id: string } };
 
 function cloneDocument(document: CanvasDocument): CanvasDocument {
   return structuredClone(document);
@@ -41,6 +52,17 @@ function isArrayItem(item: CanvasItem): item is ArrayItem {
   return item.type === "ArrayBlock";
 }
 
+function isStackItem(item: CanvasItem): item is StackItem {
+  return item.type === "StackBlock";
+}
+
+/** Builds the `StackCapacity` a given stack block currently enforces. */
+function stackCapacityOf(stack: StackItem): StackCapacity {
+  return stack.props.isFixed
+    ? { isFixed: true, size: stack.props.stackSize ?? DEFAULT_STACK_SIZE }
+    : { isFixed: false };
+}
+
 function getSlides(document: CanvasDocument) {
   return document.content.filter(isSlideItem);
 }
@@ -65,22 +87,105 @@ function getActiveSlide(document: CanvasDocument, activeSlideId: string | null) 
   return slides.find((slide) => slide.props.id === activeSlideId) ?? slides[0] ?? null;
 }
 
-function getTargetArray(document: CanvasDocument, componentId?: string) {
-  for (const slide of getSlides(document)) {
-    const array = getSlideContent(slide).find((item): item is ArrayItem => {
-      return isArrayItem(item) && (!componentId || item.props.id === componentId);
-    });
+/**
+ * Pick the array the AI/user is talking about.
+ *
+ * Precedence (this order matters — the previous version just returned the
+ * first array anywhere in the document, so "add an element" and "pop" kept
+ * hitting the wrong array when the active slide had several):
+ *   1. Explicit id (componentId) — never overridden if present.
+ *   2. Highlighted array on the active slide — if one is currently
+ *      highlighted, that's what the teacher is discussing.
+ *   3. Most-recent array on the active slide — the last one appended, i.e.
+ *      the one just added or being built up live.
+ *   4. First array on the active slide — as a fall-back before leaving the
+ *      slide at all.
+ *   5. First array anywhere — last-resort so a stale reference still resolves.
+ */
+function getTargetArray(
+  document: CanvasDocument,
+  componentId?: string,
+  activeSlideId?: string | null,
+) {
+  if (componentId) {
+    for (const slide of getSlides(document)) {
+      const match = getSlideContent(slide).find(
+        (item): item is ArrayItem =>
+          isArrayItem(item) && item.props.id === componentId,
+      );
+      if (match) return match;
+    }
+    return null;
+  }
 
-    if (array) {
-      return array;
+  const activeSlide = getActiveSlide(document, activeSlideId ?? null);
+  if (activeSlide) {
+    const arraysOnActive = getSlideContent(activeSlide).filter(isArrayItem);
+    if (arraysOnActive.length) {
+      const highlighted = arraysOnActive.find(
+        (array) => typeof array.props.highlightedIndex === "number",
+      );
+      if (highlighted) return highlighted;
+      return arraysOnActive[arraysOnActive.length - 1];
     }
   }
 
+  for (const slide of getSlides(document)) {
+    const array = getSlideContent(slide).find(isArrayItem);
+    if (array) return array;
+  }
   return null;
 }
 
 function getArrays(document: CanvasDocument) {
   return getSlides(document).flatMap((slide) => getSlideContent(slide).filter(isArrayItem));
+}
+
+/**
+ * Pick the stack the AI/user is talking about. Same precedence as
+ * `getTargetArray` — kept as a separate function rather than a shared
+ * generic because the two item shapes (`ArrayItem` vs `StackItem`) differ
+ * and a premature abstraction here would cost more than the ~15 lines of
+ * duplication it would save:
+ *   1. Explicit id (componentId).
+ *   2. Highlighted stack on the active slide.
+ *   3. Most-recently-added stack on the active slide.
+ *   4. First stack on the active slide.
+ *   5. First stack anywhere.
+ */
+function getTargetStack(
+  document: CanvasDocument,
+  componentId?: string,
+  activeSlideId?: string | null,
+) {
+  if (componentId) {
+    for (const slide of getSlides(document)) {
+      const match = getSlideContent(slide).find(
+        (item): item is StackItem =>
+          isStackItem(item) && item.props.id === componentId,
+      );
+      if (match) return match;
+    }
+    return null;
+  }
+
+  const activeSlide = getActiveSlide(document, activeSlideId ?? null);
+  if (activeSlide) {
+    const stacksOnActive = getSlideContent(activeSlide).filter(isStackItem);
+    if (stacksOnActive.length) {
+      const highlighted = stacksOnActive.find(
+        (stack) => typeof stack.props.highlightedIndex === "number",
+      );
+      if (highlighted) return highlighted;
+      return stacksOnActive[stacksOnActive.length - 1];
+    }
+  }
+
+  for (const slide of getSlides(document)) {
+    const stack = getSlideContent(slide).find(isStackItem);
+    if (stack) return stack;
+  }
+  return null;
 }
 
 function normalizeArrayValues(values: string[]) {
@@ -278,7 +383,7 @@ export function applyCanvasAction(
   }
 
   if (action.action === "set_array_values") {
-    const array = getTargetArray(nextDocument, action.componentId);
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
     if (array) {
       array.props.values = normalizeArrayValues(action.values);
       if (
@@ -294,7 +399,7 @@ export function applyCanvasAction(
   }
 
   if (action.action === "resize_array") {
-    const array = getTargetArray(nextDocument, action.componentId);
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
     if (array) {
       const nextLength = Math.max(0, Math.min(12, Math.round(action.length)));
       const currentValues = array.props.values.map((item) => item.value);
@@ -308,7 +413,7 @@ export function applyCanvasAction(
   }
 
   if (action.action === "highlight_array_index") {
-    const array = getTargetArray(nextDocument, action.componentId);
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
     if (array) {
       array.props.highlightedIndex = action.index;
       message =
@@ -320,18 +425,127 @@ export function applyCanvasAction(
     }
   }
 
+  if (action.action === "append_array_value") {
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
+    if (array) {
+      const nextValue = (action.value ?? "").trim();
+      const fallback = String(array.props.values.length);
+      const value = nextValue || fallback;
+      const nextValues = [...array.props.values, { value }];
+      if (nextValues.length > 12) {
+        message = `${array.props.title} is at the 12-element cap; can't append.`;
+      } else {
+        array.props.values = nextValues;
+        message = `Appended ${value} to ${array.props.title}.`;
+      }
+    } else {
+      message = "Could not find an array block to append to.";
+    }
+  }
+
+  if (action.action === "pop_array_value") {
+    const array = getTargetArray(nextDocument, action.componentId, nextSlideId);
+    if (array) {
+      if (array.props.values.length === 0) {
+        message = `${array.props.title} is already empty.`;
+      } else {
+        const popped = array.props.values[array.props.values.length - 1].value;
+        array.props.values = array.props.values.slice(0, -1);
+        if (
+          typeof array.props.highlightedIndex === "number" &&
+          array.props.highlightedIndex >= array.props.values.length
+        ) {
+          array.props.highlightedIndex = undefined;
+        }
+        message = `Popped ${popped} from ${array.props.title}.`;
+      }
+    } else {
+      message = "Could not find an array block to pop from.";
+    }
+  }
+
+  if (action.action === "duplicate_array_block") {
+    const source = getTargetArray(nextDocument, action.componentId, nextSlideId);
+    if (source) {
+      const duplicate = cloneItemWithNewIds(source) as ArrayItem;
+      duplicate.props.title = action.title?.trim() || `${source.props.title} copy`;
+      duplicate.props.highlightedIndex = undefined;
+      if (action.appendValue !== undefined) {
+        const value = String(action.appendValue).trim() ||
+          String(duplicate.props.values.length);
+        duplicate.props.values = [...duplicate.props.values, { value }];
+      }
+      nextSlideId = pushIntoActiveSlide(nextDocument, nextSlideId, duplicate);
+      message = `Duplicated ${source.props.title} as ${duplicate.props.title}.`;
+    } else {
+      message = "Could not find an array block to duplicate.";
+    }
+  }
+
   if (action.action === "add_stack_block") {
+    const isFixed = Boolean(action.isFixed);
+    const stackSize = action.stackSize ?? DEFAULT_STACK_SIZE;
     nextSlideId = pushIntoActiveSlide(nextDocument, nextSlideId, {
       type: "StackBlock",
       props: {
         id: createCanvasId("stack"),
         title: action.title?.trim() || "Stack A",
-        values: normalizeArrayValues(action.values?.length ? action.values : ["8", "5", "0"]),
+        values: normalizeArrayValues(
+          clampStackToCapacity(
+            action.values?.length ? action.values : ["8", "5", "0"],
+            isFixed ? { isFixed: true, size: stackSize } : { isFixed: false },
+          ),
+        ),
         highlightedIndex: undefined,
-        caption: "Push adds to the top; pop removes from the top.",
+        caption: isFixed
+          ? `Fixed stack, capacity ${stackSize}. Push adds to the top; pop removes from the top.`
+          : "Push adds to the top; pop removes from the top.",
+        isFixed,
+        stackSize: isFixed ? stackSize : undefined,
       },
     });
     message = "Added a stack block to the active frame.";
+  }
+
+  if (action.action === "push_stack_value") {
+    const stack = getTargetStack(nextDocument, action.componentId, nextSlideId);
+    if (stack) {
+      const capacity = stackCapacityOf(stack);
+      const currentValues = stack.props.values.map((item) => item.value);
+      if (!canPushStack(currentValues.length, capacity)) {
+        message = `${stack.props.title} is full (capacity ${capacity.isFixed ? capacity.size : "∞"}); pop before pushing.`;
+      } else {
+        const value = (action.value ?? "").trim() || String(currentValues.length);
+        stack.props.values = normalizeArrayValues(
+          pushStack(currentValues, value, capacity),
+        );
+        message = `Pushed ${value} onto ${stack.props.title}.`;
+      }
+    } else {
+      message = "Could not find a stack block to push onto.";
+    }
+  }
+
+  if (action.action === "pop_stack_value") {
+    const stack = getTargetStack(nextDocument, action.componentId, nextSlideId);
+    if (stack) {
+      const currentValues = stack.props.values.map((item) => item.value);
+      if (currentValues.length === 0) {
+        message = `${stack.props.title} is already empty.`;
+      } else {
+        const popped = currentValues[currentValues.length - 1];
+        stack.props.values = normalizeArrayValues(popStack(currentValues));
+        if (
+          typeof stack.props.highlightedIndex === "number" &&
+          stack.props.highlightedIndex >= stack.props.values.length
+        ) {
+          stack.props.highlightedIndex = undefined;
+        }
+        message = `Popped ${popped} from ${stack.props.title}.`;
+      }
+    } else {
+      message = "Could not find a stack block to pop from.";
+    }
   }
 
   if (action.action === "add_queue_block") {

@@ -2,11 +2,14 @@
 
 import * as React from "react";
 import { useEffect, useId, useState } from "react";
-import { useRouter } from "next/navigation";
-import { cva, type VariantProps } from "class-variance-authority";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/client";
+import { getSafeRedirectTarget } from "@/lib/safe-redirect";
 import { cn } from "@/lib/utils";
 
 type AuthContentProps = {
@@ -40,10 +43,6 @@ type AuthFormContainerProps = {
   onSignUp: (event: React.FormEvent<HTMLFormElement>) => void;
 };
 
-const labelVariants = cva(
-  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-);
-
 const defaultSignInContent = {
   image: {
     src: "/light-down.jpg",
@@ -65,75 +64,6 @@ const defaultSignUpContent = {
     author: "EaseMize UI",
   },
 };
-
-const Label = React.forwardRef<
-  HTMLLabelElement,
-  React.LabelHTMLAttributes<HTMLLabelElement> & VariantProps<typeof labelVariants>
->(({ className, ...props }, ref) => (
-  <label ref={ref} className={cn(labelVariants(), className)} {...props} />
-));
-Label.displayName = "Label";
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline:
-          "border border-input dark:border-input/50 bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary-foreground/60 underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-12 rounded-md px-6",
-        icon: "h-8 w-8",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-);
-
-interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
-
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
-    return (
-      <button
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-Button.displayName = "Button";
-
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
-    return (
-      <input
-        type={type}
-        className={cn(
-          "flex h-10 w-full rounded-lg border border-input dark:border-input/50 bg-background px-3 py-3 text-sm text-foreground shadow-sm shadow-black/5 transition-shadow placeholder:text-muted-foreground/70 focus-visible:bg-accent focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-Input.displayName = "Input";
 
 function Typewriter({
   text,
@@ -182,7 +112,7 @@ function Typewriter({
           setTextArrayIndex((previous) => (previous + 1) % textArray.length);
         }
       },
-      isDeleting ? deleteSpeed : speed
+      isDeleting ? deleteSpeed : speed,
     );
 
     return () => clearTimeout(timeout);
@@ -205,14 +135,62 @@ function Typewriter({
     </span>
   );
 }
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
+import Logo from "@/components/logo";
+type PasswordInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+  label?: string;
+};
 
-const PasswordInput = React.forwardRef<
-  HTMLInputElement,
-  React.InputHTMLAttributes<HTMLInputElement> & { label?: string }
->(({ className, label, ...props }, ref) => {
+// The coss Input renders a positioned `<span>` wrapper around the actual
+// <input>, so the eye toggle can sit inside that wrapper as a relative
+// sibling. We stack it via the input's own [data-slot=input-control] parent
+// by wrapping in a plain `<div className="relative">` — the coss Input keeps
+// its shell styling; the button just floats on top of the right edge.
+function PasswordInput({ className, label, ...props }: PasswordInputProps) {
   const id = useId();
   const [showPassword, setShowPassword] = useState(false);
 
+  return (
+    <div className="grid w-full items-center gap-2">
+      {label ? <Label htmlFor={id}>{label}</Label> : null}
+      <InputGroup>
+        <InputGroupInput
+          id={id}
+          type={showPassword ? "text" : "password"}
+          nativeInput
+          aria-label="Password with toggle visibility"
+          placeholder="Enter your password"
+          className={""}
+          {...(props as React.InputHTMLAttributes<HTMLInputElement>)}
+        />
+        <InputGroupAddon align="inline-end">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((previous) => !previous)}
+                  size="icon-xs"
+                  variant="ghost"
+                />
+              }
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </TooltipTrigger>
+            <TooltipPopup>
+              {showPassword ? "Hide password" : "Show password"}
+            </TooltipPopup>
+          </Tooltip>
+        </InputGroupAddon>
+      </InputGroup>
+    </div>
+  );
   return (
     <div className="grid w-full items-center gap-2">
       {label ? <Label htmlFor={id}>{label}</Label> : null}
@@ -220,15 +198,15 @@ const PasswordInput = React.forwardRef<
         <Input
           id={id}
           type={showPassword ? "text" : "password"}
+          nativeInput
           className={cn("pe-10", className)}
-          ref={ref}
-          {...props}
+          {...(props as React.InputHTMLAttributes<HTMLInputElement>)}
         />
         <button
           type="button"
           onClick={() => setShowPassword((previous) => !previous)}
-          className="absolute inset-y-0 end-0 flex h-full w-10 items-center justify-center text-muted-foreground/80 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
           aria-label={showPassword ? "Hide password" : "Show password"}
+          className="absolute inset-y-0 end-0 z-10 flex w-10 items-center justify-center text-muted-foreground/80 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
         >
           {showPassword ? (
             <EyeOff className="size-4" aria-hidden="true" />
@@ -239,13 +217,13 @@ const PasswordInput = React.forwardRef<
       </div>
     </div>
   );
-});
-PasswordInput.displayName = "PasswordInput";
+}
 
 function SignInForm({ isSubmitting, error, onSubmit }: AuthFormProps) {
   return (
     <form onSubmit={onSubmit} autoComplete="on" className="flex flex-col gap-8">
       <div className="flex flex-col items-center gap-2 text-center">
+       <Logo/>
         <h1 className="text-2xl font-bold">Sign in to your account</h1>
         <p className="text-balance text-sm text-muted-foreground">
           Enter your email below to sign in
@@ -275,7 +253,7 @@ function SignInForm({ isSubmitting, error, onSubmit }: AuthFormProps) {
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        <Button type="submit" variant="outline" className="mt-2" disabled={isSubmitting}>
+        <Button type="submit" className="mt-2 w-full" disabled={isSubmitting}>
           {isSubmitting ? "Signing in..." : "Sign In"}
         </Button>
       </div>
@@ -328,7 +306,7 @@ function SignUpForm({ isSubmitting, error, onSubmit }: AuthFormProps) {
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        <Button type="submit" variant="outline" className="mt-2" disabled={isSubmitting}>
+        <Button type="submit" className="mt-2 w-full" disabled={isSubmitting}>
           {isSubmitting ? "Creating account..." : "Sign Up"}
         </Button>
       </div>
@@ -347,12 +325,20 @@ function AuthFormContainer({
   return (
     <div className="mx-auto grid w-[350px] gap-2">
       {isSignIn ? (
-        <SignInForm isSubmitting={isSubmitting} error={error} onSubmit={onSignIn} />
+        <SignInForm
+          isSubmitting={isSubmitting}
+          error={error}
+          onSubmit={onSignIn}
+        />
       ) : (
-        <SignUpForm isSubmitting={isSubmitting} error={error} onSubmit={onSignUp} />
+        <SignUpForm
+          isSubmitting={isSubmitting}
+          error={error}
+          onSubmit={onSignUp}
+        />
       )}
 
-      <div className="text-center text-sm">
+      {/* <div className="text-center text-sm">
         {isSignIn ? "Don't have an account?" : "Already have an account?"}{" "}
         <Button
           variant="link"
@@ -378,29 +364,46 @@ function AuthFormContainer({
           className="mr-2 h-4 w-4"
         />
         Continue with Google
-      </Button>
+      </Button> */}
     </div>
   );
 }
 
-export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPageProps) {
+export function AuthPage({
+  signInContent = {},
+  signUpContent = {},
+}: AuthPageProps) {
   const [isSignIn, setIsSignIn] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Where to send the user once they're signed in — the route they
+  // originally asked for before the auth gate bounced them here, or
+  // /dashboard if there wasn't one (e.g. they landed on /auth/login
+  // directly). Validated so a crafted `redirectTo` can't send them off-site.
+  const redirectTarget = getSafeRedirectTarget(
+    searchParams.get("redirectTo"),
+    "/dashboard",
+  );
 
   useEffect(() => {
     let isMounted = true;
 
+    // Use getUser() (validated against Supabase) rather than getSession()
+    // (cache-only from localStorage). A stale localStorage session would
+    // otherwise bounce us to /dashboard, where the server's own getUser()
+    // sees nothing valid and bounces us right back — an infinite loop.
     const checkSession = async () => {
       try {
         const supabase = createClient();
         const {
-          data: { session },
-        } = await supabase.auth.getSession();
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-        if (session) {
-          router.replace("/dashboard");
+        if (user && !userError) {
+          router.replace(redirectTarget);
         }
       } finally {
         if (isMounted) {
@@ -414,7 +417,7 @@ export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPagePro
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [redirectTarget, router]);
 
   const handleToggle = () => {
     setError(null);
@@ -441,12 +444,12 @@ export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPagePro
         throw signInError;
       }
 
-      router.replace("/dashboard");
+      router.replace(redirectTarget);
     } catch (unknownError) {
       setError(
         unknownError instanceof Error
           ? unknownError.message
-          : "Invalid email or password. Please try again."
+          : "Invalid email or password. Please try again.",
       );
       setIsSubmitting(false);
     }
@@ -480,17 +483,19 @@ export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPagePro
 
       if (!data.session) {
         setIsSignIn(true);
-        setError("Account created. Please check your email to verify your account, then sign in.");
+        setError(
+          "Account created. Please check your email to verify your account, then sign in.",
+        );
         setIsSubmitting(false);
         return;
       }
 
-      router.replace("/dashboard");
+      router.replace(redirectTarget);
     } catch (unknownError) {
       setError(
         unknownError instanceof Error
           ? unknownError.message
-          : "Could not create account. Please verify details and try again."
+          : "Could not create account. Please verify details and try again.",
       );
       setIsSubmitting(false);
     }
@@ -535,9 +540,13 @@ export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPagePro
 
         <div className="relative z-10 flex h-full flex-col items-center justify-end p-2 pb-6">
           <blockquote className="space-y-2 text-center text-foreground">
-            <p className="text-lg font-medium">
+            <p className="text-lg font-medium text-white!">
               <span aria-hidden="true">&ldquo;</span>
-              <Typewriter key={currentContent.quote.text} text={currentContent.quote.text} speed={60} />
+              <Typewriter
+                key={currentContent.quote.text}
+                text={currentContent.quote.text}
+                speed={60}
+              />
               <span aria-hidden="true">&rdquo;</span>
             </p>
             <cite className="block text-sm font-light text-muted-foreground not-italic">

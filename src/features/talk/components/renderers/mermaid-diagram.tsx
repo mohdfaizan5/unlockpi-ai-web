@@ -2,9 +2,16 @@
 
 import { MdxMermaid } from "@/components/mdx/mermaid";
 
-export function MermaidDiagram({ chart }: { chart: string }) {
+export function MermaidDiagram({
+  chart,
+  fontFamily,
+}: {
+  chart: string;
+  /** Forwarded to MdxMermaid — see its doc comment. */
+  fontFamily?: string;
+}) {
   const cleanedChart = normalizeMermaidChart(chart);
-  return <MdxMermaid chart={cleanedChart} />;
+  return <MdxMermaid chart={cleanedChart} fontFamily={fontFamily} />;
 }
 
 function normalizeMermaidChart(chart: string): string {

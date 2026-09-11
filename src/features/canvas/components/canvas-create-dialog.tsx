@@ -12,9 +12,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldItem, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldItem,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Radio, RadioGroup } from "@/components/ui/radio-group";
 import { canvasTemplateOptions } from "@/features/canvas/lib/canvas-templates";
 import type { CanvasTemplateKey } from "@/features/canvas/types/canvas-types";
@@ -47,8 +56,12 @@ export function CanvasCreateDialog({
   topicSearch,
 }: CanvasCreateDialogProps) {
   const selectedTemplateSpotlight =
-    filteredTemplates.find((template) => template.key === selectedTemplateKey) ??
-    canvasTemplateOptions.find((template) => template.key === selectedTemplateKey) ??
+    filteredTemplates.find(
+      (template) => template.key === selectedTemplateKey,
+    ) ??
+    canvasTemplateOptions.find(
+      (template) => template.key === selectedTemplateKey,
+    ) ??
     canvasTemplateOptions[0];
 
   return (
@@ -60,8 +73,8 @@ export function CanvasCreateDialog({
             Create canvas
           </DialogTitle>
           {/* <DialogDescription> */}
-            {/* Search a Computer Science topic, then choose the template that */}
-            {/* Search for a topic and choose the template that
+          {/* Search a Computer Science topic, then choose the template that */}
+          {/* Search for a topic and choose the template that
             should open in the editor.
           </DialogDescription> */}
         </DialogHeader>
@@ -89,7 +102,10 @@ export function CanvasCreateDialog({
                     "[&_[data-slot=input]]:h-11 [&_[data-slot=input]]:px-0 [&_[data-slot=input]]:pe-3",
                   )}
                 />
-                <InputGroupAddon align="inline-end" className="text-muted-foreground">
+                <InputGroupAddon
+                  align="inline-end"
+                  className="text-muted-foreground"
+                >
                   <SearchIcon />
                 </InputGroupAddon>
               </InputGroup>
@@ -98,9 +114,13 @@ export function CanvasCreateDialog({
             <Field
               className="gap-3"
               name="canvas-template"
-              render={(props) => <Fieldset {...props} className="max-w-none gap-3" />}
+              render={(props) => (
+                <Fieldset {...props} className="max-w-none gap-3" />
+              )}
             >
-              <FieldsetLegend className="text-sm">Start from template</FieldsetLegend>
+              <FieldsetLegend className="text-sm">
+                Start from template
+              </FieldsetLegend>
               {/* <FieldDescription>
                 Pick the starter layout that should open first in the editor.
               </FieldDescription> */}
@@ -113,12 +133,13 @@ export function CanvasCreateDialog({
                 aria-label="Canvas templates"
               >
                 {filteredTemplates.map((template) => {
-                  const preview =
-                    template.image ? template : selectedTemplateSpotlight;
+                  const preview = template.image
+                    ? template
+                    : selectedTemplateSpotlight;
 
                   return (
                     <FieldItem key={template.key} className="min-w-0">
-                      <FieldLabel className="flex w-full cursor-pointer flex-col items-stretch gap-0">
+                      <FieldLabel className="group flex w-full cursor-pointer flex-col items-stretch gap-0">
                         <Radio
                           value={template.key}
                           className="peer sr-only absolute"
@@ -137,13 +158,13 @@ export function CanvasCreateDialog({
                               {template.description}
                             </span>
                           </span>
-                          <span className="w-24 md:w-40 pt-4 pb-2 pr-2">
+                          <span className="w-24 md:w-40 ">
                             <Image
                               src={preview.image}
                               alt={template.title}
                               width={280}
                               height={160}
-                              className="h-28 w-full rounded-2xl object-cover"
+                              className="h-full scale-70 group-hover:scale-75 transition-all duration-200 ease-in-out w-full rounded-2xl object-cover"
                             />
                           </span>
                         </span>

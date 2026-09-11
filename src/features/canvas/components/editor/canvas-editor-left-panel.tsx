@@ -23,13 +23,17 @@ import {
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { Render } from "@puckeditor/core";
 import { CanvasComponentPalette } from "@/features/canvas/components/editor/canvas-component-palette";
 import { CanvasSketchPad } from "@/features/canvas/components/editor/canvas-sketch-pad";
+import { canvasPuckConfig } from "@/features/canvas/components/canvas-puck-config";
+import { getCanvasPresentationFrames } from "@/features/canvas/lib/canvas-presentation";
 import {
   leftPanelCopy,
   quickCommands,
 } from "@/features/canvas/lib/canvas-client-helpers";
 import {
+  canvasFontFamilyOptions,
   canvasThemeOptions,
   canvasTypographyOptions,
 } from "@/features/canvas/lib/canvas-theme";
@@ -49,9 +53,11 @@ const homeTabs: Array<{
 
 type CanvasEditorLeftPanelProps = {
   activeCanvasTheme: CanvasEditorController["activeCanvasTheme"];
+  activeFontFamily: CanvasEditorController["activeFontFamily"];
   activeSlideId: CanvasEditorController["activeSlideId"];
   activeTypographyScale: CanvasEditorController["activeTypographyScale"];
   actionLog: CanvasEditorController["actionLog"];
+  canvasDocument: CanvasEditorController["canvasDocument"];
   commandDraft: CanvasEditorController["commandDraft"];
   commandError: CanvasEditorController["commandError"];
   frames: CanvasEditorController["frames"];
@@ -72,8 +78,10 @@ export function CanvasEditorLeftPanel({
   actionLog,
   actions,
   activeCanvasTheme,
+  activeFontFamily,
   activeSlideId,
   activeTypographyScale,
+  canvasDocument,
   commandDraft,
   commandError,
   frames,
@@ -82,6 +90,10 @@ export function CanvasEditorLeftPanel({
 }: CanvasEditorLeftPanelProps) {
   const [homeTab, setHomeTab] = useState<HomeTab>("blocks");
   const [boardOpen, setBoardOpen] = useState(false);
+  // Full per-frame documents (not just the id/title summaries in `frames`),
+  // so each card in the Frames view can render an actual miniature of the
+  // frame instead of a text-only row.
+  const previewFrames = getCanvasPresentationFrames(canvasDocument);
 
   return (
     <motion.aside
@@ -185,97 +197,121 @@ export function CanvasEditorLeftPanel({
       ) : (
         <ScrollArea className="min-h-0 mt-4 flex-1" scrollFade scrollbarGutter>
           <div className="p-3">
-          {leftPanelView === "frames" ? (
-            <div className="grid gap-2">
-              <Button
-                onClick={() => actions.applyAction({ action: "add_frame" })}
-                className="flex min-h-11 items-center justify-between rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-left text-xs transition hover:border-primary hover:bg-primary/8"
-              >
-                <span className="font-semibold">Add frame</span>
-                <PlusIcon className="size-4 text-muted-foreground" />
-              </Button>
-
-              {frames.map((frame, index) => (
-                <button
-                  key={frame.id}
-                  type="button"
-                  onClick={() =>
-                    actions.applyAction({
-                      action: "go_to_frame",
-                      frameIndex: index,
-                    })
-                  }
-                  className={cn(
-                    "rounded-lg border p-2 text-left text-xs transition hover:bg-accent",
-                    activeSlideId === frame.id
-                      ? "border-primary bg-primary/8"
-                      : "border-border bg-background",
-                  )}
-                >
-                  <span className="font-semibold">Frame {index + 1}</span>
-                  <span className="mt-1 block truncate text-muted-foreground">
-                    {frame.title}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {leftPanelView === "changes" ? (
-            <div className="grid gap-2">
-              {actionLog.map((item) => (
-                <p
-                  key={item.id}
-                  className="rounded-lg border border-border bg-muted/30 p-2 text-xs"
-                >
-                  {item.message}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {leftPanelView === "commands" ? (
-            <div className="grid gap-3">
-              <Label htmlFor="canvas-command-left">Command JSON</Label>
-              <Textarea
-                id="canvas-command-left"
-                value={commandDraft}
-                onChange={(event) =>
-                  actions.setCommandDraft(event.target.value)
-                }
-                className="min-h-36 font-mono text-xs"
-              />
-              {commandError ? (
-                <p className="text-xs text-destructive">
-                  {commandError}
-                </p>
-              ) : null}
-              <Button onClick={actions.runJsonCommand}>
-                <BracesIcon className="size-4" />
-                Run command
-              </Button>
-            </div>
-          ) : null}
-
-          {leftPanelView === "voice" ? (
-            <div className="grid gap-2">
-              {quickCommands.map((command) => (
+            {leftPanelView === "frames" ? (
+              <div className="grid gap-3">
                 <Button
-                  key={command.label}
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => actions.applyAction(command.action)}
+                  onClick={() => actions.applyAction({ action: "add_frame" })}
+                  className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/20 text-xs transition hover:border-primary hover:bg-primary/8"
                 >
-                  {command.label}
+                  <PlusIcon className="size-3.5 text-foreground" />
+                  <span className="font-semibold text-foreground">
+                    Add frame
+                  </span>
                 </Button>
-              ))}
-            </div>
-          ) : null}
 
-          {leftPanelView === "theme" ? (
-            <div className="grid gap-6">
-              <section>
-                {/* <div className="mb-3">
+                {/*
+                  Two columns of thumbnails rather than a text-only list —
+                  at a glance you can tell frames apart by their actual
+                  layout, which a title alone never conveys. Each preview is
+                  a real <Render> of that frame at a fixed 1024px design
+                  width, scaled down and clipped to a 16:9 window.
+                */}
+                <div className="grid grid-cols-2 gap-2">
+                  {previewFrames.map((frame, index) => (
+                    <button
+                      key={frame.id}
+                      type="button"
+                      onClick={() =>
+                        actions.applyAction({
+                          action: "go_to_frame",
+                          frameIndex: index,
+                        })
+                      }
+                      className={cn(
+                        "group grid gap-1.5 rounded-lg border p-1.5 text-left transition hover:bg-accent",
+                        activeSlideId === frame.id
+                          ? "border-primary bg-primary/8"
+                          : "border-border bg-background",
+                      )}
+                    >
+                      <div className="canvas-presenter-frame relative aspect-video w-full overflow-hidden rounded-md border border-border/70 bg-[var(--canvas-stage,var(--muted))]">
+                        <div
+                          className="pointer-events-none absolute left-0 top-0 origin-top-left"
+                          style={{ width: 1024, transform: "scale(0.115)" }}
+                        >
+                          <Render
+                            config={canvasPuckConfig}
+                            data={frame.document}
+                          />
+                        </div>
+                      </div>
+                      <div className="min-w-0 px-0.5 pb-0.5">
+                        <span className="block text-[11px] font-semibold leading-tight">
+                          Frame {index + 1}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[10px] leading-tight text-muted-foreground">
+                          {frame.title}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {leftPanelView === "changes" ? (
+              <div className="grid gap-2">
+                {actionLog.map((item) => (
+                  <p
+                    key={item.id}
+                    className="rounded-lg border border-border bg-muted/30 p-2 text-xs"
+                  >
+                    {item.message}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+
+            {leftPanelView === "commands" ? (
+              <div className="grid gap-3">
+                <Label htmlFor="canvas-command-left">Command JSON</Label>
+                <Textarea
+                  id="canvas-command-left"
+                  value={commandDraft}
+                  onChange={(event) =>
+                    actions.setCommandDraft(event.target.value)
+                  }
+                  className="min-h-36 font-mono text-xs"
+                />
+                {commandError ? (
+                  <p className="text-xs text-destructive">{commandError}</p>
+                ) : null}
+                <Button onClick={actions.runJsonCommand}>
+                  <BracesIcon className="size-4" />
+                  Run command
+                </Button>
+              </div>
+            ) : null}
+
+            {leftPanelView === "voice" ? (
+              <div className="grid gap-2">
+                {quickCommands.map((command) => (
+                  <Button
+                    key={command.label}
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => actions.applyAction(command.action)}
+                  >
+                    {command.label}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+
+            {leftPanelView === "theme" ? (
+              <div className="grid gap-6">
+                <section>
+                  {/* <div className="mb-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     Frame theme
                   </p>
@@ -284,115 +320,173 @@ export function CanvasEditorLeftPanel({
                     mode.
                   </p>
                 </div> */}
-                <div className="grid grid-cols-2 gap-2">
-                  {canvasThemeOptions.map((theme) => {
-                    const isActive = activeCanvasTheme === theme.id;
-                    return (
-                      <button
-                        key={theme.id}
-                        type="button"
-                        aria-pressed={isActive}
-                        onClick={() =>
-                          actions.updateCanvasAppearance({
-                            theme: theme.id,
-                          })
-                        }
-                        className={cn(
-                          "group relative h-24 rounded-xl p-2.5 text-left outline-none transition-[transform,box-shadow,background-color] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
-                          isActive
-                            ? "bg-primary/8 shadow-[inset_0_0_0_1.5px_var(--primary)]"
-                            : "bg-none",
-                        )}
-                      >
-                        <div className="flex h-12 overflow-hidden rounded-lg shadow-[0_5px_14px_rgba(0,0,0,0.09)] ring-1 ring-black/10 dark:ring-white/10">
-                          {theme.colors.map((color) => (
-                            <span
-                              key={color}
-                              className="h-full flex-1"
-                              style={{ backgroundColor: color }}
+                  <div className="grid grid-cols-2 gap-2">
+                    {canvasThemeOptions.map((theme) => {
+                      const isActive = activeCanvasTheme === theme.id;
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          aria-pressed={isActive}
+                          onClick={() =>
+                            actions.updateCanvasAppearance({
+                              theme: theme.id,
+                            })
+                          }
+                          className={cn(
+                            "group relative h-24 rounded-xl p-2.5 text-left outline-none transition-[transform,box-shadow,background-color] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
+                            isActive
+                              ? "bg-primary/8 shadow-[inset_0_0_0_1.5px_var(--primary)]"
+                              : "bg-none",
+                          )}
+                        >
+                          <div className="flex h-12 overflow-hidden rounded-lg shadow-[0_5px_14px_rgba(0,0,0,0.09)] ring-1 ring-black/10 dark:ring-white/10">
+                            {theme.colors.map((color) => (
+                              <span
+                                key={color}
+                                className="h-full flex-1"
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold">
+                              {theme.name}
+                            </span>
+                            <CheckIcon
+                              className={cn(
+                                "size-3.5 text-primary transition-[opacity,scale,filter] duration-200",
+                                isActive
+                                  ? "scale-100 opacity-100 blur-0"
+                                  : "scale-25 opacity-0 blur-[4px]",
+                              )}
                             />
-                          ))}
-                        </div>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold">
-                            {theme.name}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section>
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Typography size
+                    </p>
+                    {/* <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    A fixed sans-serif system keeps every lesson consistent.
+                  </p> */}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {canvasTypographyOptions.map((scale) => {
+                      const isActive = activeTypographyScale === scale.id;
+                      return (
+                        <button
+                          key={scale.id}
+                          type="button"
+                          aria-pressed={isActive}
+                          onClick={() =>
+                            actions.updateCanvasAppearance({
+                              typographyScale: scale.id,
+                            })
+                          }
+                          className={cn(
+                            "flex flex-col relative min-h-16 items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition-[transform,box-shadow,background-color] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
+                            isActive
+                              ? "bg-primary/8 shadow-[inset_0_0_0_1.5px_var(--primary)]"
+                              : "bg-muted/35 shadow-[inset_0_0_0_1px_var(--border)] hover:bg-muted/60",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "grid size-10 shrink-0 place-items-center rounded-lg bg-background font-sans font-semibold shadow-sm",
+                              scale.previewSize,
+                            )}
+                          >
+                            Aa
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-xs font-semibold">
+                              {scale.name}
+                            </span>
+                            {/* <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
+                            {scale.description}
+                          </span> */}
                           </span>
                           <CheckIcon
                             className={cn(
-                              "size-3.5 text-primary transition-[opacity,scale,filter] duration-200",
+                              "absolute right-0 top-0 size-3.5 shrink-0 text-primary transition-[opacity,scale,filter] duration-200",
                               isActive
                                 ? "scale-100 opacity-100 blur-0"
                                 : "scale-25 opacity-0 blur-[4px]",
                             )}
                           />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
 
-              <section>
-                <div className="mb-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Typography size
-                  </p>
-                  {/* <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    A fixed sans-serif system keeps every lesson consistent.
-                  </p> */}
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {canvasTypographyOptions.map((scale) => {
-                    const isActive =
-                      activeTypographyScale === scale.id;
-                    return (
-                      <button
-                        key={scale.id}
-                        type="button"
-                        aria-pressed={isActive}
-                        onClick={() =>
-                          actions.updateCanvasAppearance({
-                            typographyScale: scale.id,
-                          })
-                        }
-                        className={cn(
-                          "flex flex-col relative min-h-16 items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition-[transform,box-shadow,background-color] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
-                          isActive
-                            ? "bg-primary/8 shadow-[inset_0_0_0_1.5px_var(--primary)]"
-                            : "bg-muted/35 shadow-[inset_0_0_0_1px_var(--border)] hover:bg-muted/60",
-                        )}
-                      >
-                        <span
+                <section>
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Typeface
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {canvasFontFamilyOptions.map((family) => {
+                      const isActive = activeFontFamily === family.id;
+                      return (
+                        <button
+                          key={family.id}
+                          type="button"
+                          aria-pressed={isActive}
+                          onClick={() =>
+                            actions.updateCanvasAppearance({
+                              fontFamily: family.id,
+                            })
+                          }
                           className={cn(
-                            "grid size-10 shrink-0 place-items-center rounded-lg bg-background font-sans font-semibold shadow-sm",
-                            scale.previewSize,
+                            "flex flex-col relative min-h-16 items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition-[transform,box-shadow,background-color] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
+                            isActive
+                              ? "bg-primary/8 shadow-[inset_0_0_0_1.5px_var(--primary)]"
+                              : "bg-muted/35 shadow-[inset_0_0_0_1px_var(--border)] hover:bg-muted/60",
                           )}
                         >
-                          Aa
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-xs font-semibold">
-                            {scale.name}
+                          {/*
+                            The "Aa" swatch renders in the ACTUAL candidate
+                            font (previewFontFamily), so switching typeface is
+                            never a guess — same font-loading behavior as the
+                            real canvas: the browser only fetches Excalifont
+                            here once this panel is actually open and this
+                            swatch is on screen, same as the canvas itself.
+                          */}
+                          <span
+                            className="grid size-10 shrink-0 place-items-center rounded-lg bg-background text-lg font-semibold shadow-sm"
+                            style={{ fontFamily: family.previewFontFamily }}
+                          >
+                            Aa
                           </span>
-                          {/* <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
-                            {scale.description}
-                          </span> */}
-                        </span>
-                        <CheckIcon
-                          className={cn(
-                            "absolute right-0 top-0 size-3.5 shrink-0 text-primary transition-[opacity,scale,filter] duration-200",
-                            isActive
-                              ? "scale-100 opacity-100 blur-0"
-                              : "scale-25 opacity-0 blur-[4px]",
-                          )}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            </div>
-          ) : null}
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-xs font-semibold">
+                              {family.name}
+                            </span>
+                          </span>
+                          <CheckIcon
+                            className={cn(
+                              "absolute right-0 top-0 size-3.5 shrink-0 text-primary transition-[opacity,scale,filter] duration-200",
+                              isActive
+                                ? "scale-100 opacity-100 blur-0"
+                                : "scale-25 opacity-0 blur-[4px]",
+                            )}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              </div>
+            ) : null}
           </div>
         </ScrollArea>
       )}

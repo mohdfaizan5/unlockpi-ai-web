@@ -1,9 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type MouseEvent,
+} from "react";
 import { useTheme } from "next-themes";
 import { useDebouncedCallback } from "use-debounce";
 
+import { playCanvasActionSound } from "@/features/canvas/lib/canvas-action-sound";
 import {
   applyCanvasAction,
   normalizeCanvasFrames,
@@ -23,10 +31,13 @@ import {
   withCanvasTitle,
 } from "@/features/canvas/lib/canvas-client-helpers";
 import {
+  DEFAULT_CANVAS_FONT_FAMILY,
   DEFAULT_CANVAS_THEME,
   DEFAULT_CANVAS_TYPOGRAPHY_SCALE,
+  canvasFontFamilyOptions,
   canvasThemeOptions,
   canvasTypographyOptions,
+  isCanvasFontFamily,
   isCanvasThemeId,
   isCanvasTypographyScale,
 } from "@/features/canvas/lib/canvas-theme";
@@ -38,11 +49,14 @@ import type {
 import type {
   CanvasAiAction,
   CanvasDocument,
+  CanvasFontFamily,
   CanvasThemeId,
   CanvasTypographyScale,
   SketchSceneData,
 } from "@/features/canvas/types/canvas-types";
 import { toastManager } from "@/components/ui/toast";
+
+type PresentationModeValue = "voice" | "companion" | "manual" | null;
 
 export function useCanvasEditorController(
   model: CanvasEditorPageModel,
@@ -60,6 +74,15 @@ export function useCanvasEditorController(
   );
   const [isPublic, setIsPublic] = useState(model.canvas.isPublic ?? false);
   const [puckRevision, setPuckRevision] = useState(0);
+  // Bumping puckRevision force-remounts the ENTIRE <Puck> tree — header,
+  // sidebar, inspector, every frame — which is what makes an appearance
+  // change (theme/typography/typeface) feel like it "freezes" for a couple
+  // seconds before suddenly updating: the browser has no chance to paint
+  // anything in between. Wrapping that state update in a transition lets
+  // `isAppearancePending` flip true and PAINT immediately (its own update is
+  // not part of the transition), so the caller can show a loading state that
+  // bridges the gap instead of a silent freeze.
+  const [isAppearancePending, startAppearanceTransition] = useTransition();
   // Lives here, above the `<Puck key={puckRevision}>` remount boundary, so a
   // theme change or AI action (both bump puckRevision to force-remount Puck)
   // doesn't wipe out an unsaved drawing sitting in the Draw panel scratchpad.
@@ -69,10 +92,52 @@ export function useCanvasEditorController(
     sketchSceneRef.current = next;
   }, []);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const [isStartClassOpen, setIsStartClassOpen] = useState(false);
-  const [presentationMode, setPresentationMode] = useState<
-    "voice" | "companion" | "manual" | null
-  >(null);
+  // Mirrored to the URL as `?present=<mode>` (see setPresentationMode below)
+  // so refreshing mid-class, hitting back, or bookmarking a presenting link
+  // resumes presenting instead of silently dropping back to the editor —
+  // without a real route change, which would tear down and reconnect the
+  // live WebRTC session to OpenAI's Realtime API every time.
+  const [presentationMode, setPresentationModeState] =
+    useState<PresentationModeValue>(() => {
+      if (typeof window === "undefined") return null;
+      const fromUrl = new URLSearchParams(window.location.search).get(
+        "present",
+      );
+      return fromUrl === "voice" ||
+        fromUrl === "companion" ||
+        fromUrl === "manual"
+        ? fromUrl
+        : null;
+    });
+  // Wraps the raw setState so every mode change also updates the URL. Uses
+  // `history.replaceState` directly rather than Next's router: the router's
+  // push/replace re-requests the RSC payload for the route even when only
+  // the search params change, which would needlessly re-run this page's
+  // Supabase auth + canvas fetch on every "start/stop presenting" click.
+  // `history.replaceState` only touches what's in the address bar.
+  const setPresentationMode = useCallback(
+    (
+      next:
+        | PresentationModeValue
+        | ((previous: PresentationModeValue) => PresentationModeValue),
+    ) => {
+      setPresentationModeState((previous) => {
+        const resolved =
+          typeof next === "function" ? next(previous) : next;
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          if (resolved) {
+            url.searchParams.set("present", resolved);
+          } else {
+            url.searchParams.delete("present");
+          }
+          window.history.replaceState(null, "", url);
+        }
+        return resolved;
+      });
+    },
+    [],
+  );
   const [easyMode, setEasyMode] = useState(true);
   const [toolPanelOpen, setToolPanelOpen] = useState(true);
   const [leftPanelView, setLeftPanelView] = useState<LeftPanelView>("home");
@@ -142,12 +207,16 @@ export function useCanvasEditorController(
 
   const rootTheme = canvasDocument.root?.props?.theme;
   const rootTypographyScale = canvasDocument.root?.props?.typographyScale;
+  const rootFontFamily = canvasDocument.root?.props?.fontFamily;
   const activeCanvasTheme = isCanvasThemeId(rootTheme)
     ? rootTheme
     : DEFAULT_CANVAS_THEME;
   const activeTypographyScale = isCanvasTypographyScale(rootTypographyScale)
     ? rootTypographyScale
     : DEFAULT_CANVAS_TYPOGRAPHY_SCALE;
+  const activeFontFamily = isCanvasFontFamily(rootFontFamily)
+    ? rootFontFamily
+    : DEFAULT_CANVAS_FONT_FAMILY;
   const isLightTheme = resolvedTheme === "light";
   const showToolPanel = isDesktop && toolPanelOpen;
   const showAiPanel = isDesktop && aiPanelOpen;
@@ -160,6 +229,14 @@ export function useCanvasEditorController(
   const frames = getFrameSummaries(canvasDocument);
   const screenContext = summarizeCanvas(canvasDocument, activeSlideId);
   const canvasTitle = getCanvasTitle(canvasDocument);
+  // The RAW stored title — no trim, no "Untitled canvas" fallback. This is
+  // what the title <Input> must bind to: `canvasTitle` above runs
+  // `.trim() || "Untitled canvas"`, so feeding that back into a controlled
+  // input stripped the trailing space on every keystroke (you could never
+  // type a space) and made clearing the field impossible (it snapped back
+  // to "Untitled canvas"). Normalising happens on commit instead — see
+  // commitCanvasTitle.
+  const canvasTitleDraft = canvasDocument.root?.props?.title ?? "";
   const activeCanvasId = model.canvas.id;
   const activeTemplateKey = model.canvas.templateKey ?? "array-intro";
   const activeTopic = model.canvas.topic ?? "";
@@ -206,12 +283,17 @@ export function useCanvasEditorController(
     });
   }
 
+  // Saves 3s after the teacher actually STOPS typing. Deliberately no
+  // `maxWait`: that option force-fires the callback on a fixed interval even
+  // while typing is still in flight, so a long title used to trigger a save
+  // every couple of seconds mid-word. A plain trailing debounce means one
+  // save per pause — and blur/Enter still commit immediately via
+  // commitCanvasTitle, so nothing is ever lost waiting out the 3s.
   const debouncedPersistTitle = useDebouncedCallback(
     (nextTitle: string) => {
       void persistCanvas(withCanvasTitle(canvasDocumentRef.current, nextTitle));
     },
-    700,
-    { maxWait: 2000 },
+    3000,
   );
 
   useEffect(() => {
@@ -221,9 +303,29 @@ export function useCanvasEditorController(
   }, [debouncedPersistTitle]);
 
   const handleCanvasTitleChange = (nextTitle: string) => {
+    // Store exactly what was typed, spaces and all. persistCanvas trims for
+    // the DB payload via getCanvasTitle, so a half-typed "Binary " never
+    // reaches storage untrimmed — but it stays intact in the editor while
+    // the teacher is still typing the next word.
     setCanvasDocument((current) => withCanvasTitle(current, nextTitle));
     setSaveStatus("Unsaved changes");
     debouncedPersistTitle(nextTitle);
+  };
+
+  /**
+   * Called when the teacher finishes editing the title (blur or Enter).
+   * This is where the raw draft gets normalised — trimmed, and swapped for
+   * the fallback if they left it empty — then saved immediately rather than
+   * waiting out the debounce.
+   */
+  const commitCanvasTitle = () => {
+    const normalized =
+      canvasDocumentRef.current.root?.props?.title?.trim() || "Untitled canvas";
+    const nextDocument = withCanvasTitle(canvasDocumentRef.current, normalized);
+    setCanvasDocument(nextDocument);
+    canvasDocumentRef.current = nextDocument;
+    debouncedPersistTitle.cancel();
+    void persistCanvas(nextDocument);
   };
 
   const handlePuckChange = (nextDocument: CanvasDocument) => {
@@ -235,6 +337,7 @@ export function useCanvasEditorController(
     appearance: Partial<{
       theme: CanvasThemeId;
       typographyScale: CanvasTypographyScale;
+      fontFamily: CanvasFontFamily;
     }>,
   ) => {
     const current = canvasDocumentRef.current;
@@ -247,24 +350,33 @@ export function useCanvasEditorController(
           subject: current.root?.props?.subject ?? "computer_science",
           theme: appearance.theme ?? activeCanvasTheme,
           typographyScale: appearance.typographyScale ?? activeTypographyScale,
+          fontFamily: appearance.fontFamily ?? activeFontFamily,
         },
       },
     };
 
-    setCanvasDocument(nextDocument);
     canvasDocumentRef.current = nextDocument;
-    setPuckRevision((revision) => revision + 1);
     setSaveStatus("Unsaved changes");
     appendLog(
       appearance.theme
         ? `Applied the ${canvasThemeOptions.find((theme) => theme.id === appearance.theme)?.name ?? "new"} theme.`
-        : `Set typography to ${canvasTypographyOptions.find((scale) => scale.id === appearance.typographyScale)?.name ?? "a new size"}.`,
+        : appearance.fontFamily
+          ? `Set typeface to ${canvasFontFamilyOptions.find((family) => family.id === appearance.fontFamily)?.name ?? "a new typeface"}.`
+          : `Set typography to ${canvasTypographyOptions.find((scale) => scale.id === appearance.typographyScale)?.name ?? "a new size"}.`,
     );
+    // The Puck remount is the expensive part — keep it (and the document
+    // swap that triggers it) inside the transition so `isAppearancePending`
+    // is available to show a loading state for exactly its duration.
+    startAppearanceTransition(() => {
+      setCanvasDocument(nextDocument);
+      setPuckRevision((revision) => revision + 1);
+    });
     void persistCanvas(nextDocument);
   };
 
   const applyAction = (action: CanvasAiAction) => {
     const result = applyCanvasAction(canvasDocument, activeSlideId, action);
+    playCanvasActionSound(action);
     setCanvasDocument(result.document);
     setActiveSlideId(result.activeSlideId);
     setAiPanelOpen(true);
@@ -389,6 +501,7 @@ export function useCanvasEditorController(
   return {
     activeCanvasId,
     activeCanvasTheme,
+    activeFontFamily,
     activeSlideId,
     activeTemplateKey,
     activeTopic,
@@ -397,18 +510,19 @@ export function useCanvasEditorController(
     aiPanelOpen,
     canvasDocument,
     canvasTitle,
+    canvasTitleDraft,
     commandDraft,
     commandError,
     copySuccess,
     easyMode,
     frames,
     gridTemplateColumns,
+    isAppearancePending,
     isDesktop,
     isDownloadingPdf,
     isLightTheme,
     isPublic,
     isShareDialogOpen,
-    isStartClassOpen,
     isTitleEditing,
     leftPanelView,
     presentationMode,
@@ -425,6 +539,7 @@ export function useCanvasEditorController(
       applyAction,
       copyPublicLink,
       downloadAsPdf,
+      commitCanvasTitle,
       flushTitleSave: () => debouncedPersistTitle.flush(),
       handleCanvasTitleChange,
       handleCreatePublicLink,
@@ -437,7 +552,6 @@ export function useCanvasEditorController(
       setCommandDraft,
       setEasyMode,
       setIsShareDialogOpen,
-      setIsStartClassOpen,
       setIsTitleEditing,
       setLeftPanelView,
       setPresentationMode,

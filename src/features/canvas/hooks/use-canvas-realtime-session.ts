@@ -27,12 +27,18 @@ export type CanvasRealtimeAction = {
     | "set_array"
     | "resize_array"
     | "highlight_array_index"
-    | "clear_array_highlight";
+    | "clear_array_highlight"
+    | "append_array_value"
+    | "pop_array_value"
+    | "duplicate_array"
+    | "push_stack"
+    | "pop_stack";
   frame_number?: number;
   index?: number;
   length?: number;
   query?: string;
   title?: string;
+  value?: string;
   values?: string[];
 };
 

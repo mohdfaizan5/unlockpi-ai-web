@@ -4,19 +4,31 @@ import type {
   CanvasTemplate,
   CanvasTemplateKey,
 } from "@/features/canvas/types/canvas-types";
-import { DEFAULT_CANVAS_THEME } from "@/features/canvas/lib/canvas-theme";
+import {
+  DEFAULT_CANVAS_FONT_FAMILY,
+  DEFAULT_CANVAS_THEME,
+} from "@/features/canvas/lib/canvas-theme";
 
 type CanvasContent = CanvasDocument["content"];
 type CanvasContentItem = CanvasContent[number];
 
 const templateImageMap: Record<CanvasTemplateKey, string> = {
-  "array-intro": "/templates/image-Photoroom.png",
-  "array-operations": "/templates/image-Photoroom (3).png",
-  "linked-list-basics": "/templates/image-Photoroom (2).png",
-  "complexity-basics": "/templates/image-removebg-preview (8).png",
-  "recursion-basics": "/templates/image-Photoroom (4).png",
-  empty: "/templates/image-Photoroom (5).png",
+  "array-intro": "/templates/arrays.png",
+  "array-operations": "/templates/array-operations.png",
+  "linked-list-basics": "/templates/linked-list.png",
+  "complexity-basics": "/templates/time-complexity.png",
+  "recursion-basics": "/templates/recursion.png",
+  empty: "/templates/blank-template.png",
 };
+// const templateImageMap: Record<CanvasTemplateKey, string> = {
+//   "array-intro": "/templates/Frame 51.png",
+//   // "array-intro": "/templates/image-Photoroom.png",
+//   "array-operations": "/templates/image-Photoroom (3).png",
+//   "linked-list-basics": "/templates/image-Photoroom (2).png",
+//   "complexity-basics": "/templates/image-removebg-preview (8).png",
+//   "recursion-basics": "/templates/image-Photoroom (4).png",
+//   empty: "/templates/image-Photoroom (5).png",
+// };
 
 export function getCanvasTemplateImage(templateKey: CanvasTemplateKey) {
   return templateImageMap[templateKey];
@@ -38,6 +50,7 @@ function createDocument(title: string, content: CanvasContent): CanvasDocument {
         subject: "computer_science",
         theme: DEFAULT_CANVAS_THEME,
         typographyScale: "base",
+        fontFamily: DEFAULT_CANVAS_FONT_FAMILY,
       },
     },
     content: content.map((item, index) =>

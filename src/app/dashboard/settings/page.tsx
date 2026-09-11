@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { CircleUserRoundIcon } from "lucide-react"
 
@@ -6,6 +7,7 @@ import { LogoutButton } from "@/features/auth/components/logout-button"
 import { SettingsForm } from "@/features/settings/components/settings-form"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/server"
+import { getSafeRedirectTarget } from "@/lib/safe-redirect"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -15,7 +17,12 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser()
 
   if (error || !user) {
-    redirect("/auth/login")
+    const requestedPath = (await headers()).get("x-pathname")
+    redirect(
+      `/auth/login?redirectTo=${encodeURIComponent(
+        getSafeRedirectTarget(requestedPath, "/dashboard/settings"),
+      )}`,
+    )
   }
 
   const displayName =
@@ -30,7 +37,7 @@ export default async function SettingsPage() {
     <section className="mx-auto w-full max-w-4xl px-4 py-6 md:px-6 md:py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-3">
-          <CircleUserRoundIcon className="size-16" />
+          {/* <CircleUserRoundIcon className="size-16" /> */}
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
             <p className="text-sm text-muted-foreground">
@@ -40,10 +47,10 @@ export default async function SettingsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <LogoutButton variant="outline" />
-          <Button variant="outline" render={<Link href="/dashboard/projects" />}>
+          <LogoutButton variant="destructive" />
+          {/* <Button variant="outline" render={<Link href="/dashboard/projects" />}>
             Back to projects
-          </Button>
+          </Button> */}
         </div>
       </div>
 

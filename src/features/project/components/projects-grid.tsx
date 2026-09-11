@@ -248,10 +248,10 @@ function ProjectFolderCard({ project, canvasCount }: ProjectFolderCardProps) {
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-2">
                 <CardTitle className="text-xl">{project.name}</CardTitle>
-                <CardDescription className="line-clamp-2 max-w-60 text-sm leading-5 text-white/65 dark:text-muted-foreground">
+                {/* <CardDescription className="line-clamp-2 max-w-60 text-sm leading-5 text-white/65 dark:text-muted-foreground">
                   {project.description ||
                     "Open this project to see and manage all of its teaching canvases."}
-                </CardDescription>
+                </CardDescription> */}
               </div>
 
               <div

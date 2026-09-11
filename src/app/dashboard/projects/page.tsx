@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { FilesIcon, FileTextIcon, FolderIcon, PenLineIcon } from "lucide-react";
@@ -15,6 +16,7 @@ import { CreateProjectDialog } from "@/features/project/components/create-projec
 import { ProjectsGrid } from "@/features/project/components/projects-grid";
 import type { TeachingProject } from "@/features/project/types/project-types";
 import { createClient } from "@/lib/server";
+import { getSafeRedirectTarget } from "@/lib/safe-redirect";
 
 export default async function ProjectsPage() {
   const supabase = await createClient();
@@ -24,7 +26,12 @@ export default async function ProjectsPage() {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    redirect("/auth/login");
+    const requestedPath = (await headers()).get("x-pathname");
+    redirect(
+      `/auth/login?redirectTo=${encodeURIComponent(
+        getSafeRedirectTarget(requestedPath, "/dashboard/projects"),
+      )}`,
+    );
   }
 
   const [projectsRes, canvasesRes] = await Promise.all([
@@ -59,12 +66,12 @@ export default async function ProjectsPage() {
   );
 
   return (
-    <section className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-4 md:px-6 md:py-6">
-      <div className="flex flex-col gap-4 rounded-lg   py-6  md:flex-row md:items-end md:justify-between">
+    <section className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-5 py-4 md:px-6 md:pb-6 md:pt-0">
+      <div className="flex flex-col gap-4 rounded-lg   pb-6  md:flex-row md:items-end md:justify-between">
         <div className="max-w-3xl space-y-1">
-          <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
+          {/* <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
             Projects
-          </p>
+          </p> */}
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">
               Your teaching workspace

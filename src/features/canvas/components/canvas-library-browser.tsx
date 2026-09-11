@@ -81,6 +81,8 @@ import type {
 import type { CanvasTemplateKey } from "@/features/canvas/types/canvas-types";
 import { useMediaQuery } from "@/features/talk/hooks/use-media-query";
 import { createClient as createSupabaseClient } from "@/lib/client";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type CanvasLibraryBrowserProps = {
   availableProjects: CanvasProjectOption[];
@@ -198,8 +200,10 @@ function CanvasCardActions({
               <DrawerMenuGroup>
                 <DrawerMenuGroupLabel>Danger zone</DrawerMenuGroupLabel>
                 <DrawerClose
+                  className={""}
                   render={
                     <DrawerMenuItem
+                      className=""
                       variant="destructive"
                       onClick={() => void onDelete()}
                     />
@@ -495,10 +499,16 @@ export function CanvasLibraryBrowser({
     setIsTemplateDialogOpen(false);
     startTransition(() => router.push(`/dashboard/canvas/${data.id}`));
   }
+  const projectIdToProjectName = ({ id }: { id: string }) => {
+    return (
+      availableProjects.find((project) => project.id === id)?.name ??
+      "Unknown Project"
+    );
+  };
 
   return (
-    <section className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col overflow-hidden bg-background px-5 py-6 text-foreground">
-      <div className="flex flex-col gap-4 py-6 md:flex-row md:items-end md:justify-between">
+    <section className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col overflow-hidden bg-background px-5 pb -6 text-foreground">
+      <div className="flex flex-col gap-4 pb-6 md:flex-row md:items-end md:justify-between">
         <div className="max-w-3xl">
           {projectContext ? (
             <Button
@@ -544,7 +554,7 @@ export function CanvasLibraryBrowser({
                 setTemplateError(null);
                 setIsTemplateDialogOpen(true);
               }}
-              className="flex flex-col md:flex-row h-24 w-64 items-center justify-between overflow-hidden rounded-2xl bg-card px-2 pl-4 text-left shadow-[inset_0_0_0_1px_var(--border)] transition-[transform,box-shadow,background-color] hover:bg-accent active:scale-[0.98]"
+              className="flex flex-col md:flex-row h-24 group w-64 items-center justify-between overflow-hidden rounded-2xl bg-accent/40 px-2 pl-4 text-left shadow-[inset_0_0_0_1px_var(--border)] transition-[transform,box-shadow,background-color] hover:bg-accent active:scale-[0.98]"
             >
               <div className="min-w-0">
                 <p className="text-xs mt-4 md:mt-0 md:text-base font-semibold text-foreground">
@@ -557,7 +567,7 @@ export function CanvasLibraryBrowser({
                   alt={template.title}
                   width={126}
                   height={68}
-                  className="rounded-lg"
+                  className="rounded-lg group-hover:scale-105 transition-all duration-300"
                 />
               </div>
             </motion.button>
@@ -609,10 +619,28 @@ export function CanvasLibraryBrowser({
                         <p className="truncate text-sm font-semibold">
                           {canvas.title}
                         </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {canvas.topic || "Computer Science"} ·{" "}
-                          {formatUpdatedAt(canvas.updatedAt)}
-                        </p>
+                        <div
+                          className={cn(
+                            "flex  items-center gap-1",
+                            canvas.projectId && "mt-1 gap-0 justify-start",
+                          )}
+                        >
+                          {canvas.projectId && (
+                            <Badge variant={"secondary"}>
+                              {projectIdToProjectName({ id: canvas.projectId })}
+                            </Badge>
+                          )}
+                          <p className="truncate text-xs text-muted-foreground">
+                            {/* {canvas.topic || "Computer Science"} */}
+                            {canvas.projectId && (
+                              <span className="">
+                                {"  "}•{"  "}
+                              </span>
+                            )}
+                            {formatUpdatedAt(canvas.updatedAt)}
+
+                          </p>
+                        </div>
                       </div>
                     </button>
                     <CanvasCardActions

@@ -1,8 +1,10 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { VisualsScreen } from "@/features/visuals/components/visuals-screen";
 import type { GeneratedVisual } from "@/features/visuals/hooks/use-visual-generation";
 import { createClient } from "@/lib/server";
+import { getSafeRedirectTarget } from "@/lib/safe-redirect";
 
 // Always show the freshest library rather than a cached snapshot.
 export const dynamic = "force-dynamic";
@@ -14,7 +16,12 @@ export default async function VisualsPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login");
+    const requestedPath = (await headers()).get("x-pathname");
+    redirect(
+      `/auth/login?redirectTo=${encodeURIComponent(
+        getSafeRedirectTarget(requestedPath, "/dashboard/visuals"),
+      )}`,
+    );
   }
 
   // This is what makes generated visuals survive a refresh.

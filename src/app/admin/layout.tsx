@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { createClient } from "@/lib/server";
+import { getSafeRedirectTarget } from "@/lib/safe-redirect";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -11,7 +13,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/dashboard");
+    // Not authenticated at all — send to login with redirectTo, not
+    // /dashboard (which would just bounce them to login again anyway and
+    // lose the original /admin/... destination in the process).
+    const requestedPath = (await headers()).get("x-pathname");
+    redirect(
+      `/auth/login?redirectTo=${encodeURIComponent(
+        getSafeRedirectTarget(requestedPath, "/admin"),
+      )}`,
+    );
   }
 
   const { data: profile } = await supabase

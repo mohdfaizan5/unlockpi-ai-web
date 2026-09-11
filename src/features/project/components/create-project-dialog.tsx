@@ -105,7 +105,7 @@ export function CreateProjectDialog() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4">
+            <div className="grid gap-4 px-6">
               <div className="grid gap-2">
                 <Label htmlFor="project-name">Project name</Label>
                 <Input

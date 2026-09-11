@@ -98,8 +98,14 @@ export async function POST(request: NextRequest) {
                       "resize_array",
                       "highlight_array_index",
                       "clear_array_highlight",
+                      "append_array_value",
+                      "pop_array_value",
+                      "duplicate_array",
+                      "push_stack",
+                      "pop_stack",
                     ],
-                    description: "The live presentation action.",
+                    description:
+                      "The live presentation action. Array and stack actions always target the CURRENT one (the block highlighted or most recently added/discussed on the visible frame) unless the teacher clearly points at a different one. For arrays, pick the smallest action that matches: append_array_value / pop_array_value to grow or shrink the current array by one, set_array / resize_array to replace or size it, duplicate_array to copy it as a fresh block. For a stack (LIFO — the top holds the most recently pushed item), use push_stack / pop_stack; if the current stack is fixed-size and full, push_stack is a no-op and the tool result will say so — tell the teacher instead of retrying. Only use add_array / add_stack_block when the teacher explicitly wants a NEW block from scratch.",
                   },
                   frame_number: {
                     type: "integer",
@@ -111,7 +117,13 @@ export async function POST(request: NextRequest) {
                   },
                   title: {
                     type: "string",
-                    description: "Optional title for a newly added array.",
+                    description:
+                      "Optional title for a newly added or duplicated array.",
+                  },
+                  value: {
+                    type: "string",
+                    description:
+                      "The single value to append (append_array_value), push (push_stack), or append to a duplicated copy (duplicate_array).",
                   },
                   values: {
                     type: "array",
@@ -238,6 +250,15 @@ function buildSessionInstructions(
     "For a semantic request such as 'show the array with numbers', choose the best frame from the inventory and use goto with its frame_number.",
     "If the teacher explicitly asks to show or create a new array example and no suitable frame exists, use add_array with clear sample values.",
     "When the teacher explicitly asks to add, replace, resize, or highlight an array example, call control_canvas with the matching array action.",
+    // Array-targeting contract — this is what stops us hitting the wrong array.
+    "IMPORTANT — the CURRENT array: All array actions (append_array_value, pop_array_value, set_array, resize_array, highlight_array_index, duplicate_array) implicitly target the CURRENT array on the visible frame — which the client resolves as the highlighted one, else the most recently added / most recently discussed one on that frame. Never treat 'the array' as the first one in the whole document.",
+    "Pick the smallest action that matches the teacher's intent: 'add an element / push / append X' → append_array_value with value X (NOT add_array — that creates a NEW block). 'pop / remove the last one / take one off' → pop_array_value on the current array. 'replace with…' → set_array. 'make it length N' → resize_array. 'copy this array' or 'make another one like this and add X' → duplicate_array (optionally with value X). Only use add_array when the teacher asks for a wholly new example from scratch.",
+    // Stack-targeting contract — mirrors the array one above. A stack is
+    // LIFO: 'push' always means the CURRENT stack's top, 'pop' always means
+    // removing the CURRENT stack's top. There is no set/resize/duplicate for
+    // stacks — only push and pop are meaningful LIFO operations.
+    "IMPORTANT — the CURRENT stack: push_stack and pop_stack implicitly target the CURRENT stack on the visible frame — the one highlighted, else the most recently added/discussed stack on that frame. Never assume 'the stack' is the first one in the whole document.",
+    "'push X / add X to the stack' → push_stack with value X. 'pop / remove the top' → pop_stack. Some stacks are fixed-size: if push_stack's tool result says the stack is full, tell the teacher it's at capacity rather than retrying the call.",
     "When the teacher asks you to EXPLAIN, DEFINE, DIAGRAM, TABULATE, or show a CODE EXAMPLE for something, call show_in_panel with the right type. This puts supporting material in the side panel next to the slide and never changes the teacher's authored frames. Prefer this over navigating when the teacher wants new supporting content rather than an existing frame.",
     // The sync contract — this is what keeps narration locked to the visuals.
     "STAY IN SYNC — this is critical: Never describe a frame that is not currently shown. To talk about a frame, navigate to it FIRST, then explain only what is now on screen. Never explain ahead of the visuals.",
@@ -251,6 +272,9 @@ function buildSessionInstructions(
     // inventory, and never assume the current frame from your own last action.
     "IMPORTANT — staying in sync: You will receive `now_showing` system messages whenever the visible frame changes, including when the teacher navigates manually. Always treat the MOST RECENT `now_showing` as the current frame. Do not assume the current frame from your own previous tool calls.",
     "Each frame lists its block_types (e.g. Array, Code, Mermaid, Table) so you know what kind of content is present without seeing it rendered.",
+    // Teaching beat — the teacher's declared intent for the frame. This is
+    // what makes narration frame-appropriate instead of uniform.
+    "`now_showing.teaching_beat` tells you what the CURRENT frame is for, and you should change how you behave accordingly: 'hook' = stay quiet and let the teacher open, at most one short line; 'explain' = normal concise explanation of what's on screen; 'practice' = pose a question to the class or walk a worked example step by step rather than just describing it; 'recap' = summarise what was covered, don't introduce anything new. If teaching_beat is missing, default to 'explain' behaviour.",
     "A `Sketch` block is a hand-drawn image you cannot see directly — its text in `content` is a description the teacher wrote of what the drawing shows. When asked to explain, describe, or talk about a drawing or image on the current frame, rely on that written description.",
     mode === "director"
       ? "You are voice-input and silent-output: never narrate or answer aloud. Prefer a tool call or no response."

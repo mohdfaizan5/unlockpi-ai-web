@@ -1,8 +1,10 @@
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { NewSessionPageClient } from "@/features/session/components/new-session-page-client"
 import type { TeachingProject } from "@/features/session/types/session-types"
 import { createClient } from "@/lib/server"
+import { getSafeRedirectTarget } from "@/lib/safe-redirect"
 
 type PageProps = {
   searchParams: Promise<{ project_id?: string; template?: string }>
@@ -17,7 +19,12 @@ export default async function NewSessionPage({ searchParams }: PageProps) {
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    redirect("/auth/login")
+    const requestedPath = (await headers()).get("x-pathname")
+    redirect(
+      `/auth/login?redirectTo=${encodeURIComponent(
+        getSafeRedirectTarget(requestedPath, "/dashboard/session/new"),
+      )}`,
+    )
   }
 
   const { data, error } = await supabase

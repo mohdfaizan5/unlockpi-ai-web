@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 export const Star_8 = (props) => (
   <svg
     className="coolshapes star-8 "

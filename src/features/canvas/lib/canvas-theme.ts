@@ -17,10 +17,19 @@ export const canvasThemeOptions: Array<{
   colors: [string, string, string];
 }> = [
   {
+    // Keeping the id as "default" (rather than renaming to "default-dark")
+    // so every existing canvas already storing theme:"default" keeps its
+    // look without a data migration — only the display name changes.
     id: "default",
-    name: "Default",
+    name: "Default dark",
     description: "Dark classroom canvas with UnlockPi red highlights.",
     colors: ["#050607", "#dc2626", "#f5f5f5"],
+  },
+  {
+    id: "default-light",
+    name: "Default light",
+    description: "The same UnlockPi red accent on a bright classroom canvas.",
+    colors: ["#f4f5f7", "#dc2626", "#151515"],
   },
   {
     id: "studio",
@@ -100,6 +109,12 @@ export const canvasFontFamilyOptions: Array<{
     previewFontFamily:
       'Georgia, Cambria, "Times New Roman", Times, serif',
   },
+  {
+    id: "chalkboard",
+    name: "Chalkboard",
+    description: "A chalk-drawn feel, great paired with the Chalkboard theme.",
+    previewFontFamily: '"Chalkboard Regular", var(--font-system), sans-serif',
+  },
 ];
 
 /**
@@ -107,9 +122,9 @@ export const canvasFontFamilyOptions: Array<{
  * variables. "modern" is deliberately EMPTY — it sets nothing, so the
  * canvas simply inherits `--font-canvas-heading/subheading/body` from the
  * global `<html>` (next/font, already loaded for every page). Only
- * "handwriting" and "old-school" locally shadow those variables for the
- * canvas subtree, which is what makes the extra font opt-in per canvas
- * rather than a global cost.
+ * "handwriting", "old-school", and "chalkboard" locally shadow those
+ * variables for the canvas subtree, which is what makes the extra font
+ * opt-in per canvas rather than a global cost.
  */
 const fontFamilyStyles: Record<CanvasFontFamily, CSSProperties> = {
   modern: {} as CSSProperties,
@@ -122,6 +137,11 @@ const fontFamilyStyles: Record<CanvasFontFamily, CSSProperties> = {
     "--font-canvas-heading": 'Georgia, Cambria, "Times New Roman", Times, serif',
     "--font-canvas-subheading": 'Georgia, Cambria, "Times New Roman", Times, serif',
     "--font-canvas-body": 'Georgia, Cambria, "Times New Roman", Times, serif',
+  } as CSSProperties,
+  chalkboard: {
+    "--font-canvas-heading": '"Chalkboard Regular", var(--font-system), sans-serif',
+    "--font-canvas-subheading": '"Chalkboard Regular", var(--font-system), sans-serif',
+    "--font-canvas-body": '"Chalkboard Regular", var(--font-system), sans-serif',
   } as CSSProperties,
 };
 
@@ -138,6 +158,19 @@ const themeStyles: Record<CanvasThemeId, CSSProperties> = {
     "--primary": "#dc2626",
     "--primary-foreground": "#ffffff",
     "--canvas-shadow-color": "rgba(0,0,0,0.48)",
+  } as CSSProperties,
+  "default-light": {
+    "--canvas-stage": "#f4f5f7",
+    "--background": "#ffffff",
+    "--foreground": "#151515",
+    "--card": "#ffffff",
+    "--card-foreground": "#151515",
+    "--border": "#e2e5eb",
+    "--muted": "#f2f3f6",
+    "--muted-foreground": "#6b7280",
+    "--primary": "#dc2626",
+    "--primary-foreground": "#ffffff",
+    "--canvas-shadow-color": "rgba(15,23,42,0.12)",
   } as CSSProperties,
   studio: {
     "--canvas-stage": "#e7ebf0",

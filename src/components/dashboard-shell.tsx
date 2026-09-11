@@ -4,7 +4,12 @@ import type { CSSProperties, ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { UserNav } from "@/components/user-nav";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
 type DashboardUser = {
   avatarUrl: string | null;
@@ -44,8 +49,24 @@ export function DashboardShell({
 
   return (
     <SidebarProvider style={shellStyle}>
-      <AppSidebar variant="inset" currentUser={currentUser} />
+      <AppSidebar variant="inset" />
       <SidebarInset>
+        {/*
+          Account chrome lives here rather than in each page so it lands in
+          the same spot everywhere. Note this is the sidebar branch only —
+          the canvas editor and course lessons return above with no shell,
+          so they keep their own headers and never get this bar.
+
+          The SidebarTrigger is on the left because on mobile the sidebar
+          collapses to a sheet and its internal collapse button goes with
+          it, leaving no way back to navigation.
+        */}
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-3  border-border/50 bg-background/80 px-4 backdrop-blur-md sm:px-6">
+          <SidebarTrigger className="md:hidden" />
+          <div className="ml-auto">
+            <UserNav currentUser={currentUser} />
+          </div>
+        </header>
         <main className="flex flex-1 flex-col">{children}</main>
       </SidebarInset>
     </SidebarProvider>

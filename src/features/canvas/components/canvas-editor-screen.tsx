@@ -3,6 +3,7 @@
 import "@puckeditor/core/puck.css";
 
 import { Puck } from "@puckeditor/core";
+import { AnimatePresence } from "motion/react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
@@ -11,7 +12,6 @@ import { CanvasEditorInspectorPanel } from "@/features/canvas/components/editor/
 import { CanvasEditorLeftMicroRail } from "@/features/canvas/components/editor/canvas-editor-left-micro-rail";
 import { CanvasEditorLeftPanel } from "@/features/canvas/components/editor/canvas-editor-left-panel";
 import { CanvasShareDialog } from "@/features/canvas/components/editor/canvas-share-dialog";
-import { CanvasStartClassDialog } from "@/features/canvas/components/editor/canvas-start-class-dialog";
 import { CanvasPresenter } from "@/features/canvas/components/canvas-presenter";
 import { canvasPuckConfig } from "@/features/canvas/components/canvas-puck-config";
 import {
@@ -70,18 +70,21 @@ export function CanvasEditorScreen({ model }: CanvasEditorScreenProps) {
         <div className="flex h-full min-h-0 flex-col overflow-hidden">
           <CanvasEditorHeader
             actions={{
+              commitCanvasTitle: controller.actions.commitCanvasTitle,
               flushTitleSave: controller.actions.flushTitleSave,
               handleCanvasTitleChange: controller.actions.handleCanvasTitleChange,
               persistCanvas: controller.actions.persistCanvas,
               setAiPanelOpen: controller.actions.setAiPanelOpen,
               setEasyMode: controller.actions.setEasyMode,
               setIsShareDialogOpen: controller.actions.setIsShareDialogOpen,
-              setIsStartClassOpen: controller.actions.setIsStartClassOpen,
               setIsTitleEditing: controller.actions.setIsTitleEditing,
+              setPresentationMode: controller.actions.setPresentationMode,
               toggleTheme: controller.actions.toggleTheme,
             }}
             aiPanelOpen={controller.aiPanelOpen}
+            canvasDocument={controller.canvasDocument}
             canvasTitle={controller.canvasTitle}
+            canvasTitleDraft={controller.canvasTitleDraft}
             easyMode={controller.easyMode}
             isLightTheme={controller.isLightTheme}
             isTitleEditing={controller.isTitleEditing}
@@ -115,6 +118,7 @@ export function CanvasEditorScreen({ model }: CanvasEditorScreenProps) {
               activeFontFamily={controller.activeFontFamily}
               activeSlideId={controller.activeSlideId}
               activeTypographyScale={controller.activeTypographyScale}
+              canvasDocument={controller.canvasDocument}
               commandDraft={controller.commandDraft}
               commandError={controller.commandError}
               frames={controller.frames}
@@ -150,25 +154,25 @@ export function CanvasEditorScreen({ model }: CanvasEditorScreenProps) {
         </div>
       </Puck>
 
-      {controller.presentationMode ? (
-        <CanvasPresenter
-          canvasId={controller.activeCanvasId}
-          document={controller.canvasDocument}
-          initialFrameId={controller.activeSlideId}
-          mode={controller.presentationMode}
-          onClose={() => controller.actions.setPresentationMode(null)}
-          title={controller.canvasTitle}
-        />
-      ) : null}
+      {/*
+        AnimatePresence is what lets CanvasPresenter's `exit` animation
+        actually play — without it, `controller.presentationMode` flipping to
+        null would unmount the presenter synchronously mid-frame, same as
+        before.
+      */}
+      <AnimatePresence>
+        {controller.presentationMode ? (
+          <CanvasPresenter
+            canvasId={controller.activeCanvasId}
+            document={controller.canvasDocument}
+            initialFrameId={controller.activeSlideId}
+            mode={controller.presentationMode}
+            onClose={() => controller.actions.setPresentationMode(null)}
+            title={controller.canvasTitle}
+          />
+        ) : null}
+      </AnimatePresence>
 
-      <CanvasStartClassDialog
-        actions={{
-          persistCanvas: controller.actions.persistCanvas,
-          setIsStartClassOpen: controller.actions.setIsStartClassOpen,
-          setPresentationMode: controller.actions.setPresentationMode,
-        }}
-        isStartClassOpen={controller.isStartClassOpen}
-      />
       <CanvasShareDialog
         actions={{
           copyPublicLink: controller.actions.copyPublicLink,

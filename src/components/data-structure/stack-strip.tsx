@@ -115,7 +115,7 @@ export function StackStrip({
         */}
         <div
           className={cn(
-            "flex flex-col-reverse gap-2 rounded-b-2xl border-x-2 border-b-2 border-foreground/25 p-3",
+            "flex flex-col-reverse gap-2 rounded-b-2xl border-x-2 border-b-2 border-dashed border-foreground/25 p-3",
             // Reserve a subtle inner surface so the walls stand out from the
             // page in both themes.
             "bg-muted/40",

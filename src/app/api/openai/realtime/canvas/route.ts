@@ -272,6 +272,9 @@ function buildSessionInstructions(
     // inventory, and never assume the current frame from your own last action.
     "IMPORTANT — staying in sync: You will receive `now_showing` system messages whenever the visible frame changes, including when the teacher navigates manually. Always treat the MOST RECENT `now_showing` as the current frame. Do not assume the current frame from your own previous tool calls.",
     "Each frame lists its block_types (e.g. Array, Code, Mermaid, Table) so you know what kind of content is present without seeing it rendered.",
+    // Teaching beat — the teacher's declared intent for the frame. This is
+    // what makes narration frame-appropriate instead of uniform.
+    "`now_showing.teaching_beat` tells you what the CURRENT frame is for, and you should change how you behave accordingly: 'hook' = stay quiet and let the teacher open, at most one short line; 'explain' = normal concise explanation of what's on screen; 'practice' = pose a question to the class or walk a worked example step by step rather than just describing it; 'recap' = summarise what was covered, don't introduce anything new. If teaching_beat is missing, default to 'explain' behaviour.",
     "A `Sketch` block is a hand-drawn image you cannot see directly — its text in `content` is a description the teacher wrote of what the drawing shows. When asked to explain, describe, or talk about a drawing or image on the current frame, rely on that written description.",
     mode === "director"
       ? "You are voice-input and silent-output: never narrate or answer aloud. Prefer a tool call or no response."

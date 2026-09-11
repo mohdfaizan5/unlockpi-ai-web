@@ -96,6 +96,8 @@ export type CanvasEditorController = {
   actionLog: ActionLogItem[];
   aiPanelOpen: boolean;
   canvasTitle: string;
+  /** Raw, untrimmed stored title — bind the title input to this, not canvasTitle. */
+  canvasTitleDraft: string;
   canvasDocument: CanvasDocument;
   commandDraft: string;
   commandError: string | null;
@@ -109,7 +111,6 @@ export type CanvasEditorController = {
   isPublic: boolean;
   isDownloadingPdf: boolean;
   isShareDialogOpen: boolean;
-  isStartClassOpen: boolean;
   isTitleEditing: boolean;
   leftPanelView: LeftPanelView;
   presentationMode: CanvasPresentationMode | null;
@@ -124,6 +125,8 @@ export type CanvasEditorController = {
   toolPanelOpen: boolean;
   actions: {
     applyAction: (action: CanvasAiAction) => void;
+    /** Normalises the title (trim + fallback) and saves — call on blur/Enter. */
+    commitCanvasTitle: () => void;
     copyPublicLink: () => Promise<void>;
     downloadAsPdf: () => Promise<void>;
     flushTitleSave: () => void;
@@ -137,7 +140,6 @@ export type CanvasEditorController = {
     setCommandDraft: React.Dispatch<React.SetStateAction<string>>;
     setEasyMode: React.Dispatch<React.SetStateAction<boolean>>;
     setIsShareDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    setIsStartClassOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setIsTitleEditing: React.Dispatch<React.SetStateAction<boolean>>;
     setLeftPanelView: React.Dispatch<React.SetStateAction<LeftPanelView>>;
     setPresentationMode: React.Dispatch<

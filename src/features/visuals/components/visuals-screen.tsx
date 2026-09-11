@@ -93,7 +93,7 @@ export function VisualsScreen({ initialVisuals = [] }: VisualsScreenProps) {
   };
 
   return (
-    <section className="mx-auto w-full max-w-5xl px-4 py-6 md:px-6 md:py-8">
+    <section className="mx-auto w-full max-w-5xl px-4 pb-6 md:px-6 md:pb-8">
       <VisualsHero />
 
       <PromptInput onSubmit={handleSubmit} className="">

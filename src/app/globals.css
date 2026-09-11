@@ -36,6 +36,19 @@
   font-display: swap;
 }
 
+/**
+ * Canvas "Chalkboard" typeface — same opt-in-per-canvas rule as Excalifont
+ * above: only fetched when a canvas actually selects fontFamily="chalkboard"
+ * and renders text in it.
+ */
+@font-face {
+  font-family: "Chalkboard Regular";
+  src: url("/chalk-board-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ─── Pi AI Design Tokens ─── */
 :root {
   /* Core palette */
@@ -128,14 +141,14 @@
  *   ❌  focus-visible:ring-2 focus-visible:ring-ring   (harsh red halo)
  *   ✅  class="focus-ring"
  */
-@utility focus-ring {
+/* @utility focus-ring {
   &:focus-visible {
     outline: 2px solid transparent;
     outline-offset: 2px;
     border-color: var(--ring);
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 24%, transparent);
   }
-}
+} */
 
 /* Light mode tokens. The app still defaults to dark via ThemeProvider. */
 :root {
@@ -293,11 +306,7 @@ html ::-webkit-scrollbar-track {
   color: #fff;
 } */
 
-/* ─── Focus Ring (orange glow) ─── */
-:focus-visible {
-  outline: 2px solid var(--color-orange);
-  outline-offset: 2px;
-}
+
 
 /* Photo viewer controls */
 .PhotoView-Slider__toolbarIcon {

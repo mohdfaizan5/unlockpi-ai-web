@@ -30,6 +30,7 @@ import {
 } from "react";
 import type { AgentState } from "@livekit/components-react";
 import type { RemoteAudioTrack } from "livekit-client";
+import { motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -45,6 +46,7 @@ import {
 import { useCopilotPanel } from "@/features/canvas/hooks/use-copilot-panel";
 import type { PanelGenerateRequest } from "@/features/canvas/lib/panel-generation";
 import { useEdgeReveal } from "@/features/canvas/hooks/use-edge-reveal";
+import { playCanvasActionSound } from "@/features/canvas/lib/canvas-action-sound";
 import {
   applyCanvasAction,
   summarizeCanvas,
@@ -139,6 +141,9 @@ export function CanvasPresenter({
         activeFrame.id,
         canvasAction,
       );
+      // Same cue whether the teacher clicked it or said it out loud — the
+      // class hears the array change, not just sees it.
+      playCanvasActionSound(canvasAction);
       const nextFrames = getCanvasPresentationFrames(result.document);
       setRuntimeDocument(result.document);
       setActiveIndex(
@@ -331,8 +336,17 @@ export function CanvasPresenter({
   }
 
   return (
-    <div
+    <motion.div
       ref={presenterRef}
+      // Entering presentation mode used to be an instant hard cut — one
+      // frame you're in the editor, the next you're not. This eases in over
+      // 1s (a gentle scale-up + fade) so it reads as a deliberate transition
+      // onto "stage" rather than a jarring switch. Exit is quicker (0.4s) —
+      // getting back to editing should feel snappy, not ceremonial.
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
         // Header/footer are now absolute overlays inside this container,
         // so it just needs to be a full-viewport positioned box — no flex
@@ -627,7 +641,7 @@ export function CanvasPresenter({
           onSelect={goTo}
         />
       ) : null}
-    </div>
+    </motion.div>
   );
 }
 

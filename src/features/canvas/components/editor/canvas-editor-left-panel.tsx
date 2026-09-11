@@ -23,8 +23,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { Render } from "@puckeditor/core";
 import { CanvasComponentPalette } from "@/features/canvas/components/editor/canvas-component-palette";
 import { CanvasSketchPad } from "@/features/canvas/components/editor/canvas-sketch-pad";
+import { canvasPuckConfig } from "@/features/canvas/components/canvas-puck-config";
+import { getCanvasPresentationFrames } from "@/features/canvas/lib/canvas-presentation";
 import {
   leftPanelCopy,
   quickCommands,
@@ -54,6 +57,7 @@ type CanvasEditorLeftPanelProps = {
   activeSlideId: CanvasEditorController["activeSlideId"];
   activeTypographyScale: CanvasEditorController["activeTypographyScale"];
   actionLog: CanvasEditorController["actionLog"];
+  canvasDocument: CanvasEditorController["canvasDocument"];
   commandDraft: CanvasEditorController["commandDraft"];
   commandError: CanvasEditorController["commandError"];
   frames: CanvasEditorController["frames"];
@@ -77,6 +81,7 @@ export function CanvasEditorLeftPanel({
   activeFontFamily,
   activeSlideId,
   activeTypographyScale,
+  canvasDocument,
   commandDraft,
   commandError,
   frames,
@@ -85,6 +90,10 @@ export function CanvasEditorLeftPanel({
 }: CanvasEditorLeftPanelProps) {
   const [homeTab, setHomeTab] = useState<HomeTab>("blocks");
   const [boardOpen, setBoardOpen] = useState(false);
+  // Full per-frame documents (not just the id/title summaries in `frames`),
+  // so each card in the Frames view can render an actual miniature of the
+  // frame instead of a text-only row.
+  const previewFrames = getCanvasPresentationFrames(canvasDocument);
 
   return (
     <motion.aside
@@ -189,42 +198,64 @@ export function CanvasEditorLeftPanel({
         <ScrollArea className="min-h-0 mt-4 flex-1" scrollFade scrollbarGutter>
           <div className="p-3">
             {leftPanelView === "frames" ? (
-              <div className="grid gap-2 ">
-                <div className="relative h-18 w-full">
-                  <Button
-                    onClick={() => actions.applyAction({ action: "add_frame" })}
-                    className="flex min-h-16 w-full items-center justify- rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-left text-xs transition hover:border-primary hover:bg-primary/8"
-                  >
-                    <span className="font-semibold text-foreground">
-                      Add frame
-                    </span>
-                    <PlusIcon className="size-3 text-foreground" />
-                  </Button>
-                </div>
+              <div className="grid gap-3">
+                <Button
+                  onClick={() => actions.applyAction({ action: "add_frame" })}
+                  className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/20 text-xs transition hover:border-primary hover:bg-primary/8"
+                >
+                  <PlusIcon className="size-3.5 text-foreground" />
+                  <span className="font-semibold text-foreground">
+                    Add frame
+                  </span>
+                </Button>
 
-                {frames.map((frame, index) => (
-                  <button
-                    key={frame.id}
-                    type="button"
-                    onClick={() =>
-                      actions.applyAction({
-                        action: "go_to_frame",
-                        frameIndex: index,
-                      })
-                    }
-                    className={cn(
-                      "rounded-lg border p-2 text-left text-xs transition hover:bg-accent",
-                      activeSlideId === frame.id
-                        ? "border-primary bg-primary/8"
-                        : "border-border bg-background",
-                    )}
-                  >
-                    <span className="font-semibold">Frame {index + 1}</span>
-                    <span className="mt-1 block truncate text-muted-foreground">
-                      {frame.title}
-                    </span>
-                  </button>
-                ))}
+                {/*
+                  Two columns of thumbnails rather than a text-only list —
+                  at a glance you can tell frames apart by their actual
+                  layout, which a title alone never conveys. Each preview is
+                  a real <Render> of that frame at a fixed 1024px design
+                  width, scaled down and clipped to a 16:9 window.
+                */}
+                <div className="grid grid-cols-2 gap-2">
+                  {previewFrames.map((frame, index) => (
+                    <button
+                      key={frame.id}
+                      type="button"
+                      onClick={() =>
+                        actions.applyAction({
+                          action: "go_to_frame",
+                          frameIndex: index,
+                        })
+                      }
+                      className={cn(
+                        "group grid gap-1.5 rounded-lg border p-1.5 text-left transition hover:bg-accent",
+                        activeSlideId === frame.id
+                          ? "border-primary bg-primary/8"
+                          : "border-border bg-background",
+                      )}
+                    >
+                      <div className="canvas-presenter-frame relative aspect-video w-full overflow-hidden rounded-md border border-border/70 bg-[var(--canvas-stage,var(--muted))]">
+                        <div
+                          className="pointer-events-none absolute left-0 top-0 origin-top-left"
+                          style={{ width: 1024, transform: "scale(0.115)" }}
+                        >
+                          <Render
+                            config={canvasPuckConfig}
+                            data={frame.document}
+                          />
+                        </div>
+                      </div>
+                      <div className="min-w-0 px-0.5 pb-0.5">
+                        <span className="block text-[11px] font-semibold leading-tight">
+                          Frame {index + 1}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[10px] leading-tight text-muted-foreground">
+                          {frame.title}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
 
@@ -402,7 +433,7 @@ export function CanvasEditorLeftPanel({
                       Typeface
                     </p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {canvasFontFamilyOptions.map((family) => {
                       const isActive = activeFontFamily === family.id;
                       return (

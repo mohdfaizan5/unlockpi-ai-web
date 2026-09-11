@@ -1,8 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/dashboard-shell";
 import { createClient } from "@/lib/server";
+import { getSafeRedirectTarget } from "@/lib/safe-redirect";
 
 const dashboardShellStyle = {
   "--sidebar-width": "calc(var(--spacing) * 72)",
@@ -21,7 +23,18 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    redirect("/auth/login");
+    // The proxy (src/proxy.ts -> updateSession) already redirects an
+    // unauthenticated request to /auth/login before this layout ever runs —
+    // this is a rare fallback (e.g. a cookie desync between that check and
+    // this one). It stamps the request path onto `x-pathname` specifically
+    // so this fallback can still send the teacher back to what they asked
+    // for, including dynamic routes like /dashboard/canvas/[canvasId].
+    const requestedPath = (await headers()).get("x-pathname");
+    redirect(
+      `/auth/login?redirectTo=${encodeURIComponent(
+        getSafeRedirectTarget(requestedPath, "/dashboard"),
+      )}`,
+    );
   }
 
   // Fire-and-forget: this RPC used to `await` here on EVERY dashboard

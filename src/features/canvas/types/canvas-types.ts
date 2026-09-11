@@ -4,6 +4,7 @@ export type CanvasSubject = "computer_science";
 
 export type CanvasThemeId =
   | "default"
+  | "default-light"
   | "studio"
   | "notebook"
   | "chalkboard"
@@ -14,11 +15,19 @@ export type CanvasTypographyScale = "base" | "medium" | "small";
 /**
  * Canvas text typeface — separate axis from `CanvasTypographyScale` (which
  * only controls size). "modern" is the existing default (Inter/Manrope/Space
- * Grotesk, already loaded globally). "handwriting" and "old-school" are
- * per-canvas opt-ins whose fonts are only fetched when actually selected —
- * see the @font-face comment in globals.css.
+ * Grotesk, already loaded globally). "handwriting", "old-school", and
+ * "chalkboard" are per-canvas opt-ins whose fonts are only fetched when
+ * actually selected — see the @font-face comments in globals.css.
+ *
+ * "chalkboard" here is a TYPEFACE (chalk-board-regular.woff2) — unrelated to
+ * the "chalkboard" `CanvasThemeId` color theme above, which is a different
+ * axis (colors, not font) and is currently disabled in canvasThemeOptions.
  */
-export type CanvasFontFamily = "modern" | "handwriting" | "old-school";
+export type CanvasFontFamily =
+  | "modern"
+  | "handwriting"
+  | "old-school"
+  | "chalkboard";
 
 export type CanvasRootProps = {
   title: string;

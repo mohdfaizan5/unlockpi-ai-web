@@ -1,7 +1,17 @@
-import { CircleHelpIcon, MailQuestionIcon } from "lucide-react"
+import { CircleHelpIcon, MailQuestionIcon } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-
+import { CircleAlertIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardFrame,
+  CardFrameDescription,
+  CardFrameFooter,
+  CardFrameHeader,
+  CardFrameTitle,
+  CardPanel,
+} from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 export default function HelpPage() {
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-6 md:px-6 md:py-8">
@@ -16,33 +26,45 @@ export default function HelpPage() {
       </div>
 
       <div className="grid gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Where to manage work</CardTitle>
-            <CardDescription>
-              The sidebar is now only for navigation. Projects and sessions live in dedicated pages.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm leading-6 text-muted-foreground">
-            <p>Open `Projects` to browse your teaching workspaces.</p>
-            <p>Open a project to view, edit, and launch its sessions.</p>
-            <p>Use `New session` to create a fresh session inside any project.</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Need more help?</CardTitle>
-            <CardDescription>
+        <CardFrame className="w-full max-w-2xl">
+          <CardFrameHeader>
+            <CardFrameTitle>Where to manage work</CardFrameTitle>
+            <CardFrameDescription>
+              The sidebar is now only for navigation. Projects and sessions live
+              in dedicated pages.{" "}
+            </CardFrameDescription>
+          </CardFrameHeader>
+          <Card className="rounded-b-none!">
+            <CardPanel>
+              <p>Open `Projects` to browse your teaching workspaces.</p>
+              <p>Open a project to view, edit, and launch its sessions.</p>
+              <p>
+                Use `New session` to create a fresh session inside any project.
+              </p>
+            </CardPanel>
+          </Card>
+          {/* <CardFrameFooter>
+                  <div className="flex gap-1 text-muted-foreground text-xs">
+                    <CircleAlertIcon className="size-3 h-lh shrink-0" />
+                    <p>This will take a few seconds to complete.</p>
+                  </div>
+                </CardFrameFooter> */}
+        </CardFrame>
+        
+        <Alert>
+          <AlertTitle>Need more help?</AlertTitle>
+          <AlertDescription>
+            <p>
+             
               This can later connect to docs, contact, or guided onboarding.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center gap-3 text-sm text-muted-foreground">
-            <MailQuestionIcon className="size-4" />
-            A fuller support surface can plug in here next.
-          </CardContent>
-        </Card>
+            </p>
+            <p className="flex items-center gap-3 text-sm text-muted-foreground">
+              <MailQuestionIcon className="size-4" />A fuller support surface
+              can plug in here next.
+            </p>
+          </AlertDescription>
+        </Alert>
       </div>
     </section>
-  )
+  );
 }

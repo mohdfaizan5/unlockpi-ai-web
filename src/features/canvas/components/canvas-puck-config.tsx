@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties, type ReactNode } from "react";
-import type { Config, SlotComponent } from "@puckeditor/core";
+import { DropZone, type Config, type SlotComponent } from "@puckeditor/core";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import {
@@ -69,13 +69,6 @@ import {
   getCanvasThemeStyle,
 } from "@/features/canvas/lib/canvas-theme";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-const beatLabels: Record<SlideBlockProps["teachingBeat"], string> = {
-  hook: "Hook",
-  explain: "Explain",
-  practice: "Practice",
-  recap: "Recap",
-};
 
 const headingFontStyle = {
   fontFamily: "var(--font-canvas-heading), var(--font-system), sans-serif",
@@ -158,7 +151,6 @@ function SlideBlock({
   id,
   frameLabel,
   title,
-  teachingBeat,
   notes,
   content: Content,
 }: SlideRenderProps) {
@@ -167,14 +159,17 @@ function SlideBlock({
   return (
     <article
       id={`canvas-slide-${id}`}
-      className="mx-auto w-full max-w-5xl scroll-mt-4"
+      className="mx-auto w-full my-auto max-w-2xl scroll-mt-4"
     >
       <div className="mb-0 flex items-center justify-between gap-3 px-1 text-foreground">
+        {/*
+          The teaching-beat badge used to sit here. It was pure decoration —
+          nothing read it — so it was noise on every single frame while
+          authoring. The field itself still exists and now feeds the AI (see
+          describeFrameForModel), which is what actually earns its keep.
+        */}
         <div className="flex min-w-0 items-center gap-2">
           <p className="shrink-0 text-sm font-semibold">{label}</p>
-          <span className="rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {beatLabels[teachingBeat]}
-          </span>
           <p className="truncate text-xs text-muted-foreground">{title}</p>
         </div>
 
@@ -711,7 +706,7 @@ export const canvasPuckConfig: Config<CanvasComponents, CanvasRootProps> = {
         })),
       },
     },
-    render: ({ children, title, theme, typographyScale, fontFamily }) => (
+    render: ({ title, theme, typographyScale, fontFamily }) => (
       <main
         aria-label={title ? `${title} frames` : "Canvas frames"}
         className="grid min-h-full w-full content-start gap-6 bg-[var(--canvas-stage)] px-3  text-foreground transition-[background-color,color] duration-200 sm:px-4 lg:px-6"
@@ -721,7 +716,18 @@ export const canvasPuckConfig: Config<CanvasComponents, CanvasRootProps> = {
           fontFamily ?? DEFAULT_CANVAS_FONT_FAMILY,
         )}
       >
-        {children}
+        {/*
+          Explicit DropZone instead of the `children` Puck hands the root
+          render, because `children` is the implicit default zone with NO
+          allow-list — it accepted any block, so a Heading or Array dragged
+          slightly past a frame's edge landed at canvas root, outside every
+          frame, where it renders unstyled and is invisible to the AI (which
+          only ever reads SlideBlock content). Restricting to SlideBlock
+          means blocks can only ever live inside a frame. "default-zone" is
+          Puck's own id for the root zone, so existing documents keep
+          working — nothing about the stored shape changes.
+        */}
+        <DropZone zone="default-zone" allow={["SlideBlock"]} />
       </main>
     ),
   },

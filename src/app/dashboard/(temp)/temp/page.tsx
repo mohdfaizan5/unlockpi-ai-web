@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { play } from "cuelume";
 
 import { ArrayStrip } from "@/components/data-structure/array-strip";
 import {
@@ -49,7 +50,14 @@ function ArraySection() {
           variant="outline"
           size="sm"
           onClick={() =>
-            setArrayData((prev) => prev.slice(0, Math.max(prev.length - 1, 0)))
+            setArrayData((prev) => {
+              if (prev.length === 0) {
+                play("error");
+                return prev;
+              }
+              play("droplet");
+              return prev.slice(0, -1);
+            })
           }
         >
           pop
@@ -57,7 +65,10 @@ function ArraySection() {
         <Button
           size="sm"
           onClick={() =>
-            setArrayData((prev) => [...prev, prev.length + 1])
+            setArrayData((prev) => {
+              play("bloom");
+              return [...prev, prev.length + 1];
+            })
           }
         >
           push
@@ -89,16 +100,30 @@ function StackPlayground() {
   const isFull = !canPushStack(stackData.length, capacity);
   const isEmpty = !canPopStack(stackData.length);
 
+  // The cue reflects what actually happened, not what was clicked: pushing
+  // a full stack or popping an empty one is a no-op in stack-model, so it
+  // gets the refusal sound instead of the success sound.
   const push = useCallback(() => {
+    if (isFull) {
+      play("error");
+      return;
+    }
+    play("bloom");
     setStackData((prev) => pushStack(prev, `dress ${pushCounter}`, capacity));
     setPushCounter((n) => n + 1);
-  }, [capacity, pushCounter]);
+  }, [capacity, isFull, pushCounter]);
 
   const pop = useCallback(() => {
+    if (isEmpty) {
+      play("error");
+      return;
+    }
+    play("droplet");
     setStackData((prev) => popStack(prev));
-  }, []);
+  }, [isEmpty]);
 
   const clear = useCallback(() => {
+    play("droplet");
     setStackData([]);
   }, []);
 
@@ -151,6 +176,7 @@ function StackPlayground() {
           <div className="flex items-center gap-3">
             <Switch
               id="fixed-toggle"
+              data-cuelume-toggle
               checked={isFixed}
               onCheckedChange={handleFixedChange}
             />

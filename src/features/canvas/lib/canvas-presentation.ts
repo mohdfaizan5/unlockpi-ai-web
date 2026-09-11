@@ -62,6 +62,22 @@ export function getFrameBlockTypes(frame: CanvasPresentationFrame): string[] {
 }
 
 /**
+ * The frame's teaching beat — hook / explain / practice / recap. This is the
+ * teacher's own declaration of what this frame is FOR, and it's the signal
+ * that lets the AI change behaviour per frame rather than narrating
+ * everything in the same register: ask a question on a practice frame,
+ * summarise on a recap, stay out of the way on a hook.
+ */
+export function getFrameTeachingBeat(
+  frame: CanvasPresentationFrame,
+): string | undefined {
+  const slide = frame.document.content[0] as
+    | { props?: { teachingBeat?: string } }
+    | undefined;
+  return slide?.props?.teachingBeat;
+}
+
+/**
  * Compact ground-truth description of a single frame, sent to the model every
  * time the visible frame changes (manual or AI nav). This is the "sight" — it
  * keeps the model's idea of "where are we and what's here" from going stale.
@@ -75,6 +91,7 @@ export function describeFrameForModel(
       frame_number: frame.index + 1,
       total_frames: totalFrames,
       title: frame.title,
+      teaching_beat: getFrameTeachingBeat(frame),
       block_types: getFrameBlockTypes(frame),
       content: frame.searchText.slice(0, 800),
     },

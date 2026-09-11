@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import { useEffect, useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/client";
+import { getSafeRedirectTarget } from "@/lib/safe-redirect";
 import { cn } from "@/lib/utils";
 
 type AuthContentProps = {
@@ -111,7 +112,7 @@ function Typewriter({
           setTextArrayIndex((previous) => (previous + 1) % textArray.length);
         }
       },
-      isDeleting ? deleteSpeed : speed
+      isDeleting ? deleteSpeed : speed,
     );
 
     return () => clearTimeout(timeout);
@@ -134,7 +135,14 @@ function Typewriter({
     </span>
   );
 }
-
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
+import Logo from "@/components/logo";
 type PasswordInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
 };
@@ -151,6 +159,41 @@ function PasswordInput({ className, label, ...props }: PasswordInputProps) {
   return (
     <div className="grid w-full items-center gap-2">
       {label ? <Label htmlFor={id}>{label}</Label> : null}
+      <InputGroup>
+        <InputGroupInput
+          id={id}
+          type={showPassword ? "text" : "password"}
+          nativeInput
+          aria-label="Password with toggle visibility"
+          placeholder="Enter your password"
+          className={""}
+          {...(props as React.InputHTMLAttributes<HTMLInputElement>)}
+        />
+        <InputGroupAddon align="inline-end">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((previous) => !previous)}
+                  size="icon-xs"
+                  variant="ghost"
+                />
+              }
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </TooltipTrigger>
+            <TooltipPopup>
+              {showPassword ? "Hide password" : "Show password"}
+            </TooltipPopup>
+          </Tooltip>
+        </InputGroupAddon>
+      </InputGroup>
+    </div>
+  );
+  return (
+    <div className="grid w-full items-center gap-2">
+      {label ? <Label htmlFor={id}>{label}</Label> : null}
       <div className="relative">
         <Input
           id={id}
@@ -162,8 +205,8 @@ function PasswordInput({ className, label, ...props }: PasswordInputProps) {
         <button
           type="button"
           onClick={() => setShowPassword((previous) => !previous)}
-          className="absolute inset-y-0 end-0 z-10 flex w-10 items-center justify-center text-muted-foreground/80 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
           aria-label={showPassword ? "Hide password" : "Show password"}
+          className="absolute inset-y-0 end-0 z-10 flex w-10 items-center justify-center text-muted-foreground/80 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
         >
           {showPassword ? (
             <EyeOff className="size-4" aria-hidden="true" />
@@ -180,6 +223,7 @@ function SignInForm({ isSubmitting, error, onSubmit }: AuthFormProps) {
   return (
     <form onSubmit={onSubmit} autoComplete="on" className="flex flex-col gap-8">
       <div className="flex flex-col items-center gap-2 text-center">
+       <Logo/>
         <h1 className="text-2xl font-bold">Sign in to your account</h1>
         <p className="text-balance text-sm text-muted-foreground">
           Enter your email below to sign in
@@ -281,9 +325,17 @@ function AuthFormContainer({
   return (
     <div className="mx-auto grid w-[350px] gap-2">
       {isSignIn ? (
-        <SignInForm isSubmitting={isSubmitting} error={error} onSubmit={onSignIn} />
+        <SignInForm
+          isSubmitting={isSubmitting}
+          error={error}
+          onSubmit={onSignIn}
+        />
       ) : (
-        <SignUpForm isSubmitting={isSubmitting} error={error} onSubmit={onSignUp} />
+        <SignUpForm
+          isSubmitting={isSubmitting}
+          error={error}
+          onSubmit={onSignUp}
+        />
       )}
 
       {/* <div className="text-center text-sm">
@@ -317,11 +369,23 @@ function AuthFormContainer({
   );
 }
 
-export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPageProps) {
+export function AuthPage({
+  signInContent = {},
+  signUpContent = {},
+}: AuthPageProps) {
   const [isSignIn, setIsSignIn] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Where to send the user once they're signed in — the route they
+  // originally asked for before the auth gate bounced them here, or
+  // /dashboard if there wasn't one (e.g. they landed on /auth/login
+  // directly). Validated so a crafted `redirectTo` can't send them off-site.
+  const redirectTarget = getSafeRedirectTarget(
+    searchParams.get("redirectTo"),
+    "/dashboard",
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -339,7 +403,7 @@ export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPagePro
         } = await supabase.auth.getUser();
 
         if (user && !userError) {
-          router.replace("/dashboard");
+          router.replace(redirectTarget);
         }
       } finally {
         if (isMounted) {
@@ -353,7 +417,7 @@ export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPagePro
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [redirectTarget, router]);
 
   const handleToggle = () => {
     setError(null);
@@ -380,12 +444,12 @@ export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPagePro
         throw signInError;
       }
 
-      router.replace("/dashboard");
+      router.replace(redirectTarget);
     } catch (unknownError) {
       setError(
         unknownError instanceof Error
           ? unknownError.message
-          : "Invalid email or password. Please try again."
+          : "Invalid email or password. Please try again.",
       );
       setIsSubmitting(false);
     }
@@ -419,17 +483,19 @@ export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPagePro
 
       if (!data.session) {
         setIsSignIn(true);
-        setError("Account created. Please check your email to verify your account, then sign in.");
+        setError(
+          "Account created. Please check your email to verify your account, then sign in.",
+        );
         setIsSubmitting(false);
         return;
       }
 
-      router.replace("/dashboard");
+      router.replace(redirectTarget);
     } catch (unknownError) {
       setError(
         unknownError instanceof Error
           ? unknownError.message
-          : "Could not create account. Please verify details and try again."
+          : "Could not create account. Please verify details and try again.",
       );
       setIsSubmitting(false);
     }
@@ -476,7 +542,11 @@ export function AuthPage({ signInContent = {}, signUpContent = {} }: AuthPagePro
           <blockquote className="space-y-2 text-center text-foreground">
             <p className="text-lg font-medium text-white!">
               <span aria-hidden="true">&ldquo;</span>
-              <Typewriter key={currentContent.quote.text} text={currentContent.quote.text} speed={60} />
+              <Typewriter
+                key={currentContent.quote.text}
+                text={currentContent.quote.text}
+                speed={60}
+              />
               <span aria-hidden="true">&rdquo;</span>
             </p>
             <cite className="block text-sm font-light text-muted-foreground not-italic">

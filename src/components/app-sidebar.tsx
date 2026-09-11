@@ -2,37 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import {
-  CircleHelpIcon,
   FolderIcon,
   ImageIcon,
-  LogOutIcon,
-  MessageSquareIcon,
-  MoonIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
-  PenLineIcon,
   Settings2Icon,
-  Sun,
 } from "lucide-react";
-import { useEffect, useState, type ComponentProps, type ComponentType } from "react";
+import { type ComponentProps, type ComponentType } from "react";
 import { PiChalkboardDuotone } from "react-icons/pi";
-import { useTheme } from "next-themes";
 
-import { createClient } from "@/lib/client";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Menu,
-  MenuGroup,
-  MenuGroupLabel,
-  MenuItem,
-  MenuPopup,
-  MenuSeparator,
-  MenuTrigger,
-} from "@/components/ui/menu";
 import {
   Sidebar,
   SidebarContent,
@@ -50,12 +32,6 @@ type MainItem = {
   url: string;
   icon: ComponentType<{ className?: string }>;
   subtitle?: string;
-};
-
-type SidebarUser = {
-  avatarUrl?: string | null;
-  name: string;
-  email: string;
 };
 
 const topItems: MainItem[] = [
@@ -87,6 +63,12 @@ const quickAction = {
   icon: PiChalkboardDuotone,
 };
 
+const settingsItem: MainItem = {
+  title: "Settings",
+  url: "/dashboard/settings",
+  icon: Settings2Icon,
+};
+
 function SidebarCollapseButton() {
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -96,7 +78,7 @@ function SidebarCollapseButton() {
       type="button"
       onClick={toggleSidebar}
       aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-      className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+      className="inline-flex size-8 items-center justify-center rounded-sm border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
     >
       {isCollapsed ? (
         <PanelLeftOpenIcon className="size-4" />
@@ -107,45 +89,17 @@ function SidebarCollapseButton() {
   );
 }
 
-export function AppSidebar({
-  currentUser,
-  ...props
-}: ComponentProps<typeof Sidebar> & {
-  currentUser?: SidebarUser;
-}) {
+export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
-  const { push, replace, refresh } = useRouter();
-  const { resolvedTheme, setTheme } = useTheme();
-  const { state: sidebarState, toggleSidebar, isMobile } = useSidebar();
-  const [isMounted, setIsMounted] = useState(false);
+  const { state: sidebarState, toggleSidebar } = useSidebar();
   const isSidebarCollapsed = sidebarState === "collapsed";
-  const isLightTheme = isMounted && resolvedTheme === "light";
-  const userInitial = currentUser?.name?.trim().charAt(0).toUpperCase() || "U";
   const isCanvasActive = pathname === quickAction.url;
-
-  useEffect(() => {
-    // next-themes reports `resolvedTheme` as undefined on the server, so this
-    // one-time mount flag is required to avoid a hydration mismatch.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsMounted(true);
-  }, []);
-
-  const navigateTo = (href: string) => {
-    push(href);
-  };
-
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    replace("/auth/login");
-    refresh();
-  };
 
   return (
     <Sidebar
       collapsible="icon"
       className={cn(
-        "**:data-[slot=sidebar-menu-button]:rounded-xl",
+        "**:data-[slot=sidebar-menu-button]:rounded-sm",
         "**:data-[slot=sidebar-menu-button]:text-sm **:data-[slot=sidebar-menu-button]:font-medium",
         "[&_[data-slot=sidebar-menu-button][data-active=true]]:bg-accent [&_[data-slot=sidebar-menu-button][data-active=true]]:text-accent-foreground",
       )}
@@ -200,7 +154,7 @@ export function AppSidebar({
               isActive={isCanvasActive}
               className="h-auto min-h-10 items-start gap-2.5 py-2 group-data-[collapsible=icon]:items-center"
             >
-              <quickAction.icon className="mt-0.5 size-4 shrink-0" />
+              <quickAction.icon className={cn("mt-0.5 size-4 shrink-0", isCanvasActive && "")} />
               <div className="grid min-w-0 gap-0.5 group-data-[collapsible=icon]:hidden">
                 <span className="truncate">{quickAction.title}</span>
               </div>
@@ -244,101 +198,28 @@ export function AppSidebar({
             They now live on dedicated workspace pages so the sidebar stays focused on top-level navigation. */}
       </SidebarContent>
 
-      <SidebarFooter className="mt-auto border-t border-border/50 px-2 py-3">
-        {currentUser ? (
-          <SidebarMenu className="mt-2">
-            <SidebarMenuItem className="">
-              <Menu >
-                <MenuTrigger
-                  render={
-                    <SidebarMenuButton
-                      size="lg"
-                      tooltip={currentUser.name}
-                      className="h-auto min-h-12 items-center gap-3 rounded-2xl border2 border-border/70 bg-card p-3 aria-expanded:bg-accent/50"
-                    />
-                  }
-                >
-                  <Avatar className="size-10 shrink-0 text-sm">
-                    <AvatarImage
-                      src={currentUser.avatarUrl ?? undefined}
-                      alt={currentUser.name}
-                    />
-                    <AvatarFallback className="bg-primary/12 font-semibold text-primary">
-                      {userInitial}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
-                    <span className="truncate text-sm font-medium text-foreground">
-                      {currentUser.name}
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {currentUser.email}
-                    </span>
-                  </div>
-                </MenuTrigger>
-
-                <MenuPopup
-                  className="min-w-56"
-                  side={isMobile ? "bottom" : "right"}
-                  align="end"
-                  sideOffset={6}
-                >
-                  <MenuGroup>
-                    <MenuGroupLabel>
-                      <div className="flex items-center gap-3 px-1 py-1.5 text-left">
-                        <Avatar className="size-9 shrink-0 text-sm">
-                          <AvatarImage
-                            src={currentUser.avatarUrl ?? undefined}
-                            alt={currentUser.name}
-                          />
-                          <AvatarFallback className="bg-primary/12 font-semibold text-primary">
-                            {userInitial}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="grid min-w-0 flex-1 leading-tight">
-                          <span className="truncate text-sm font-medium text-foreground">
-                            {currentUser.name}
-                          </span>
-                          <span className="truncate text-xs text-muted-foreground">
-                            {currentUser.email}
-                          </span>
-                        </div>
-                      </div>
-                    </MenuGroupLabel>
-                  </MenuGroup>
-                  <MenuSeparator />
-                  <MenuItem onClick={() => navigateTo("/dashboard/settings")}>
-                    <Settings2Icon className="size-4" />
-                    Settings
-                  </MenuItem>
-                  <MenuItem onClick={handleLogout}>
-                    <LogOutIcon className="size-4" />
-                    Log out
-                  </MenuItem>
-                  <MenuSeparator />
-                  <MenuItem onClick={() => navigateTo("/dashboard/help")}>
-                    <CircleHelpIcon className="size-4" />
-                    Help
-                  </MenuItem>
-                  <MenuItem onClick={() => navigateTo("/dashboard/feedback")}>
-                    <MessageSquareIcon className="size-4" />
-                    Feedback
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => setTheme(isLightTheme ? "dark" : "light")}
-                  >
-                    {isLightTheme ? (
-                      <MoonIcon className="size-4" />
-                    ) : (
-                      <Sun className="size-4" />
-                    )}
-                    {isLightTheme ? "Dark mode" : "Light mode"}
-                  </MenuItem>
-                </MenuPopup>
-              </Menu>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        ) : null}
+      {/*
+        The account card that used to sit here moved to the top-right
+        UserNav in DashboardShell. Settings stays behind as navigation —
+        it's a destination page like Projects or Visuals, not an account
+        action, so it belongs with the nav rather than in the avatar menu.
+      */}
+      <SidebarFooter className="mt-auto border-t border-border/50 px-2 py-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              render={<Link href={settingsItem.url} />}
+              tooltip={settingsItem.title}
+              isActive={pathname.startsWith(settingsItem.url)}
+              className="h-auto min-h-10 items-start gap-2.5 py-2 group-data-[collapsible=icon]:items-center"
+            >
+              <settingsItem.icon className="mt-0.5 size-4 shrink-0" />
+              <div className="grid min-w-0 gap-0.5 group-data-[collapsible=icon]:hidden">
+                <span className="truncate">{settingsItem.title}</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

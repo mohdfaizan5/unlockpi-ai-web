@@ -1,8 +1,10 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { CanvasLibraryScreen } from "@/features/canvas/components/canvas-library-screen";
 import { loadCanvasLibraryPage } from "@/features/canvas/lib/canvas-page-loaders";
 import { createClient } from "@/lib/server";
+import { getSafeRedirectTarget } from "@/lib/safe-redirect";
 
 export default async function CanvasLibraryPage() {
   const supabase = await createClient();
@@ -13,7 +15,12 @@ export default async function CanvasLibraryPage() {
   }
 
   if (result.status !== "ready") {
-    redirect("/auth/login");
+    const requestedPath = (await headers()).get("x-pathname");
+    redirect(
+      `/auth/login?redirectTo=${encodeURIComponent(
+        getSafeRedirectTarget(requestedPath, "/dashboard/canvas"),
+      )}`,
+    );
   }
 
   return <CanvasLibraryScreen model={result.model} />;

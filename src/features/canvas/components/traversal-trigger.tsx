@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { PlayIcon, RotateCcwIcon } from "lucide-react";
+import { play } from "cuelume";
 
 const TRAVERSAL_STEP_MS = 600;
 
@@ -88,7 +89,14 @@ export function TraversalTrigger({
       onUpdate(step, visited);
 
       if (step === traversalTarget) {
+        // Landing on the target is the payoff of the whole traversal, so it
+        // gets the confirmation cue rather than another step tick.
+        play("success");
         stopPlaying();
+      } else {
+        // One tick per cell the cursor moves over — turns "watch the
+        // highlight move" into something the class can also hear count out.
+        play("tick");
       }
     }, TRAVERSAL_STEP_MS);
   };
@@ -96,6 +104,7 @@ export function TraversalTrigger({
   const handleReset = (event: MouseEvent) => {
     event.stopPropagation();
     stopPlaying();
+    play("droplet");
     onUpdate(undefined, []);
   };
 

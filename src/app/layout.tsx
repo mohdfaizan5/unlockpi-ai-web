@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Inter, Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import "streamdown/styles.css";
+import { CuelumeBinder } from "@/components/cuelume-binder";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "@/components/ui/toast";
@@ -58,6 +59,7 @@ export default function RootLayout({
             <TooltipProvider>{children}</TooltipProvider>
           </ToastProvider>
         </ThemeProvider>
+        <CuelumeBinder />
       </body>
     </html>
   );

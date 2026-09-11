@@ -11,6 +11,7 @@ import {
 import { useTheme } from "next-themes";
 import { useDebouncedCallback } from "use-debounce";
 
+import { playCanvasActionSound } from "@/features/canvas/lib/canvas-action-sound";
 import {
   applyCanvasAction,
   normalizeCanvasFrames,
@@ -55,6 +56,8 @@ import type {
 } from "@/features/canvas/types/canvas-types";
 import { toastManager } from "@/components/ui/toast";
 
+type PresentationModeValue = "voice" | "companion" | "manual" | null;
+
 export function useCanvasEditorController(
   model: CanvasEditorPageModel,
 ): CanvasEditorController {
@@ -89,10 +92,52 @@ export function useCanvasEditorController(
     sketchSceneRef.current = next;
   }, []);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const [isStartClassOpen, setIsStartClassOpen] = useState(false);
-  const [presentationMode, setPresentationMode] = useState<
-    "voice" | "companion" | "manual" | null
-  >(null);
+  // Mirrored to the URL as `?present=<mode>` (see setPresentationMode below)
+  // so refreshing mid-class, hitting back, or bookmarking a presenting link
+  // resumes presenting instead of silently dropping back to the editor —
+  // without a real route change, which would tear down and reconnect the
+  // live WebRTC session to OpenAI's Realtime API every time.
+  const [presentationMode, setPresentationModeState] =
+    useState<PresentationModeValue>(() => {
+      if (typeof window === "undefined") return null;
+      const fromUrl = new URLSearchParams(window.location.search).get(
+        "present",
+      );
+      return fromUrl === "voice" ||
+        fromUrl === "companion" ||
+        fromUrl === "manual"
+        ? fromUrl
+        : null;
+    });
+  // Wraps the raw setState so every mode change also updates the URL. Uses
+  // `history.replaceState` directly rather than Next's router: the router's
+  // push/replace re-requests the RSC payload for the route even when only
+  // the search params change, which would needlessly re-run this page's
+  // Supabase auth + canvas fetch on every "start/stop presenting" click.
+  // `history.replaceState` only touches what's in the address bar.
+  const setPresentationMode = useCallback(
+    (
+      next:
+        | PresentationModeValue
+        | ((previous: PresentationModeValue) => PresentationModeValue),
+    ) => {
+      setPresentationModeState((previous) => {
+        const resolved =
+          typeof next === "function" ? next(previous) : next;
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          if (resolved) {
+            url.searchParams.set("present", resolved);
+          } else {
+            url.searchParams.delete("present");
+          }
+          window.history.replaceState(null, "", url);
+        }
+        return resolved;
+      });
+    },
+    [],
+  );
   const [easyMode, setEasyMode] = useState(true);
   const [toolPanelOpen, setToolPanelOpen] = useState(true);
   const [leftPanelView, setLeftPanelView] = useState<LeftPanelView>("home");
@@ -184,6 +229,14 @@ export function useCanvasEditorController(
   const frames = getFrameSummaries(canvasDocument);
   const screenContext = summarizeCanvas(canvasDocument, activeSlideId);
   const canvasTitle = getCanvasTitle(canvasDocument);
+  // The RAW stored title — no trim, no "Untitled canvas" fallback. This is
+  // what the title <Input> must bind to: `canvasTitle` above runs
+  // `.trim() || "Untitled canvas"`, so feeding that back into a controlled
+  // input stripped the trailing space on every keystroke (you could never
+  // type a space) and made clearing the field impossible (it snapped back
+  // to "Untitled canvas"). Normalising happens on commit instead — see
+  // commitCanvasTitle.
+  const canvasTitleDraft = canvasDocument.root?.props?.title ?? "";
   const activeCanvasId = model.canvas.id;
   const activeTemplateKey = model.canvas.templateKey ?? "array-intro";
   const activeTopic = model.canvas.topic ?? "";
@@ -230,12 +283,17 @@ export function useCanvasEditorController(
     });
   }
 
+  // Saves 3s after the teacher actually STOPS typing. Deliberately no
+  // `maxWait`: that option force-fires the callback on a fixed interval even
+  // while typing is still in flight, so a long title used to trigger a save
+  // every couple of seconds mid-word. A plain trailing debounce means one
+  // save per pause — and blur/Enter still commit immediately via
+  // commitCanvasTitle, so nothing is ever lost waiting out the 3s.
   const debouncedPersistTitle = useDebouncedCallback(
     (nextTitle: string) => {
       void persistCanvas(withCanvasTitle(canvasDocumentRef.current, nextTitle));
     },
-    700,
-    { maxWait: 2000 },
+    3000,
   );
 
   useEffect(() => {
@@ -245,9 +303,29 @@ export function useCanvasEditorController(
   }, [debouncedPersistTitle]);
 
   const handleCanvasTitleChange = (nextTitle: string) => {
+    // Store exactly what was typed, spaces and all. persistCanvas trims for
+    // the DB payload via getCanvasTitle, so a half-typed "Binary " never
+    // reaches storage untrimmed — but it stays intact in the editor while
+    // the teacher is still typing the next word.
     setCanvasDocument((current) => withCanvasTitle(current, nextTitle));
     setSaveStatus("Unsaved changes");
     debouncedPersistTitle(nextTitle);
+  };
+
+  /**
+   * Called when the teacher finishes editing the title (blur or Enter).
+   * This is where the raw draft gets normalised — trimmed, and swapped for
+   * the fallback if they left it empty — then saved immediately rather than
+   * waiting out the debounce.
+   */
+  const commitCanvasTitle = () => {
+    const normalized =
+      canvasDocumentRef.current.root?.props?.title?.trim() || "Untitled canvas";
+    const nextDocument = withCanvasTitle(canvasDocumentRef.current, normalized);
+    setCanvasDocument(nextDocument);
+    canvasDocumentRef.current = nextDocument;
+    debouncedPersistTitle.cancel();
+    void persistCanvas(nextDocument);
   };
 
   const handlePuckChange = (nextDocument: CanvasDocument) => {
@@ -298,6 +376,7 @@ export function useCanvasEditorController(
 
   const applyAction = (action: CanvasAiAction) => {
     const result = applyCanvasAction(canvasDocument, activeSlideId, action);
+    playCanvasActionSound(action);
     setCanvasDocument(result.document);
     setActiveSlideId(result.activeSlideId);
     setAiPanelOpen(true);
@@ -431,6 +510,7 @@ export function useCanvasEditorController(
     aiPanelOpen,
     canvasDocument,
     canvasTitle,
+    canvasTitleDraft,
     commandDraft,
     commandError,
     copySuccess,
@@ -443,7 +523,6 @@ export function useCanvasEditorController(
     isLightTheme,
     isPublic,
     isShareDialogOpen,
-    isStartClassOpen,
     isTitleEditing,
     leftPanelView,
     presentationMode,
@@ -460,6 +539,7 @@ export function useCanvasEditorController(
       applyAction,
       copyPublicLink,
       downloadAsPdf,
+      commitCanvasTitle,
       flushTitleSave: () => debouncedPersistTitle.flush(),
       handleCanvasTitleChange,
       handleCreatePublicLink,
@@ -472,7 +552,6 @@ export function useCanvasEditorController(
       setCommandDraft,
       setEasyMode,
       setIsShareDialogOpen,
-      setIsStartClassOpen,
       setIsTitleEditing,
       setLeftPanelView,
       setPresentationMode,
